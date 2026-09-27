@@ -61,30 +61,19 @@ else
     sudo pacman -S --needed --noconfirm stow
   fi
   
-  # Lọc bỏ các dòng trống, dòng bắt đầu bằng '#' và inline comments
-  # Chỉ truyền chính xác tên gói (cột đầu tiên) vào pacman
+  # Lọc bỏ comment, dòng trống và lấy đúng tên package
   awk '{if ($1 && $1 !~ /^#/) print $1}' "$PKG_LIST" | sudo pacman -Syu --needed --noconfirm -
 fi
 
 # ── 2. Dotfiles ────────────────────────────────────────────
 step "Liên kết dotfiles (GNU Stow)"
-# Stow tạo symlink TARGET/<đường-dẫn-trong-package>. Vì vậy package
-# `config` phải stow vào ~/.config (KHÔNG phải ~), còn package `home`
-# vào ~ — đó là lý do tách 2 lệnh thay vì gộp.
-#
-# --overwrite: file đã tồn tại do app tự tạo (ví dụ ~/.config/mako/config)
-# được thay bằng symlink. Stow KHÔNG xoá file gốc — nó đổi tên thành
-# <file>.stow-backup, nên chạy lại vẫn an toàn.
 mkdir -p "$HOME/.config"
-stow    -t "$HOME"        -d "$REPO" --overwrite home
-stow    -t "$HOME/.config" -d "$REPO" --overwrite config
-sudo stow -t /etc -d "$REPO" --overwrite etc
-sudo stow -t /usr -d "$REPO" --overwrite usr
+stow    -t "$HOME"        -d "$REPO" --adopt home
+stow    -t "$HOME/.config" -d "$REPO" --adopt config
+sudo stow -t /etc -d "$REPO" --adopt etc
+sudo stow -t /usr -d "$REPO" --adopt usr
 info "~/.gitconfig  ~/.bashrc  ~/.local/bin/*  ~/.config/*  /etc/*  /usr/local/bin/*"
 
-# ⚠️ Stow tạo symlink nhưng KHÔNG giữ quyền của file trong repo. Nên
-# /etc/sudoers.d/wheel sẽ ra 644, và sudo SỎ IM LẶNG BỎ QUA file quyền
-# sai — mất sudo mà không có một dòng cảnh báo nào. Sửa ngay tại đây.
 if [ -e /etc/sudoers.d/wheel ]; then
   sudo chmod 440 /etc/sudoers.d/wheel
   if sudo visudo -c -f /etc/sudoers.d/wheel >/dev/null 2>&1; then
@@ -96,17 +85,8 @@ if [ -e /etc/sudoers.d/wheel ]; then
 fi
 
 # ── 3. Sinh ~/.config/environment.d từ session-env.sh ───────
-# ⭐ Nguồn SỰ THẬT chỉ có MỘT: config/session-env.sh.
-#
-# Cùng một lý do biến môi trường phải tồn tại ở hai nơi:
-#   · app Sway mở ra          → đọc ~/.config/session-env.sh
-#   · app qua systemd service → đọc ~/.config/environment.d/*.conf
-# Trước đây 5 biến bị viết tay 2 lần, nghĩa là sửa 1 biến ở chỗ này mà
-# quên chỗ kia → app launch từ launcher ra IME không hoạt động, mà không
-# có báo lỗi nào. Giờ file .conf được SINH RA từ file .sh: sửa 1 chỗ.
 step "Sinh environment.d từ session-env.sh"
 mkdir -p "$HOME/.config/environment.d"
-# `export FOO=bar` → `FOO=bar`; bỏ dòng trống, giữ dòng comment của file .sh
 sed -nE 's/^[[:space:]]*export[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)=(.*)$/\1=\2/p' \
   "$REPO/config/session-env.sh" > "$HOME/.config/environment.d/10-session.conf"
 
@@ -117,22 +97,16 @@ else
   warn "Không sinh được biến nào — app chạy qua systemd service sẽ thiếu IME."
 fi
 
-# Đọc biến mới cho các service ĐANG CHẠY (environment.d chỉ có hiệu lực
-# khi systemd --user đọc lại, tức lần đăng nhập sau).
 systemctl --user daemon-reexec 2>/dev/null || true
 
 # ── 4. Thư mục dữ liệu người dùng ──────────────────────────
 step "Tạo thư mục dữ liệu"
 mkdir -p "$HOME/Pictures/wallpapers" "$HOME/Pictures/Screenshots" "$HOME/Books"
 
-# API key Gemini — KHÔNG nằm trong repo (repo public, lịch sử git vĩnh
-# viễn). Máy mới thì copy tay 1 lần:
-#     cp /đường/dẫn/ở-máy-cũ/api.key ~/.config/quick-lang/
-# hoặc đặt biến môi trường GEMINI_API_KEY. `quick-lang` đọc cả hai.
 mkdir -p "$HOME/.config/quick-lang"
 chmod 700 "$HOME/.config/quick-lang"
 if [ -s "$HOME/.config/quick-lang/api.key" ]; then
-  info "api.key (đã có, quyền $(stat -c\%a "$HOME/.config/quick-lang/api.key"))"
+  info "api.key (đã có, quyền $(stat -c%a "$HOME/.config/quick-lang/api.key"))"
 else
   warn "Chưa có API key Gemini → Super+T (dịch) sẽ rơi về Google Translate."
   warn "  cp <file> ~/.config/quick-lang/api.key && chmod 600 ~/.config/quick-lang/api.key"
@@ -141,28 +115,17 @@ fi
 info "~/Pictures/{wallpapers,Screenshots}  ~/Books  ~/.config/quick-lang"
 
 # ── 5. Plugin yazi ──────────────────────────────────────────
-# smart-enter: <Enter> rẽ nhánh — thư mục thì đi vào, file thì mở app.
-# Không có nó, preset của yazi mở nvim khi bấm <Enter> vào THƯ MỤC.
 step "Cài plugin yazi (smart-enter)"
 YAZI_PLUGIN="$HOME/.config/yazi/plugins/smart-enter.yazi"
 if [ -d "$YAZI_PLUGIN" ]; then
   info "Đã có, giữ nguyên."
 else
   command -v git >/dev/null || sudo pacman -S --needed --noconfirm git
-  # ~/.config/yazi là symlink về repo → clone rơi thẳng vào repo, đúng ý đồ.
   git clone --depth 1 https://github.com/yazi-extensions/smart-enter "$YAZI_PLUGIN" \
     && info "OK" || warn "Không clone được (mạng?) — bỏ qua, yazi vẫn chạy."
 fi
 
-
 # ── 6. Ứng dụng AppImage ───────────────────────────────────
-# ⛔ KHÔNG sinh file .desktop cho RemNote ở đây. File .desktop của
-#    RemNote nằm BÊN TRONG AppImage, do tác giả app viết (đúng Exec, Icon,
-#    Categories, MimeType). Viết tay thì dễ sai và lệch mỗi lần app cập
-#    nhật — script `setup-remnote` sẽ lấy file gốc đó ra.
-#
-#    Trước khi bạn tải AppImage thì launcher không có RemNote. Đúng như
-#    mong đợi, không phải lỗi.
 
 # ── 7. Locale ──────────────────────────────────────────────
 step "Sinh locale"
@@ -176,14 +139,12 @@ fi
 # ── 8. Dịch vụ hệ thống ────────────────────────────────────
 step "Bật dịch vụ hệ thống"
 for svc in earlyoom keyd greetd fwupd; do
-  sudo systemctl enable --now "$svc" 2>/dev/null && info "$svc" \vert{}\vert{} warn "$svc: bật không được"
+  sudo systemctl enable --now "$svc" 2>/dev/null && info "$svc" || warn "$svc: bật không được"
 done
 sudo systemctl enable --now fstrim.timer 2>/dev/null && info "fstrim.timer"
 
-# earlyoom làm cơ chế OOM chính → tắt systemd-oomd cho khỏi chạy hai daemon.
 sudo systemctl mask systemd-oomd.service >/dev/null 2>&1 && info "mask systemd-oomd"
 
-# Ngưỡng sạc pin 85–90% (chống sạc 100% liên tục).
 sudo systemctl enable battery-threshold.service 2>/dev/null \
   && info "battery-threshold.service" \
   || warn "battery-threshold: chưa thấy /usr/local/bin/set-battery-threshold"
@@ -192,20 +153,12 @@ sudo systemctl enable battery-threshold.service 2>/dev/null \
 step "Bật dịch vụ người dùng"
 systemctl --user daemon-reload
 
-# swayidle / awww-daemon / wallpaper-init / fcitx5 gắn vào
-# sway-session.target nên tự chạy khi Sway khởi động — không cần enable
-# thủ công. trash-clean.timer thì phải enable: nó chạy lúc 3h sáng,
-# ngoài phiên Sway.
 systemctl --user enable --now trash-clean.timer 2>/dev/null \
   && info "trash-clean.timer" || warn "trash-clean.timer: bật không được"
 
-# wallpaper-init chạy SAU awww-daemon (After= trong unit) nên không cần
-# bật thủ công ở đây, nhưng enable để chắc chắn nó được kéo lên cùng
-# sway-session.target.
 systemctl --user enable wallpaper-init.service 2>/dev/null \
   && info "wallpaper-init.service" || warn "wallpaper-init.service: bật không được"
 
-# Timer phải chạy cả khi đã logout (máy ngủ). Bật linger cho user.
 loginctl enable-linger "$USER" 2>/dev/null && info "linger: bật" || true
 
 # ── 10. Kiểm tra ────────────────────────────────────────────
@@ -213,7 +166,7 @@ step "Kiểm tra"
 miss=0
 for c in sway swaymsg swaylock swayidle waybar foot mako rofi wlsunset awww fcitx5 \
          keyd powerprofilesctl wpctl brightnessctl jq yazi imv mpv; do
-  command -v "$c" >/dev/null \vert{}\vert{} { warn "thiếu: $c"; miss=1; }
+  command -v "$c" >/dev/null || { warn "thiếu: $c"; miss=1; }
 done
 
 if [ ! -f /usr/lib/systemd/user/sway-session.target ]; then
@@ -238,29 +191,3 @@ fi
 # ── 12. Gợi ý cuối ─────────────────────────────────────────
 printf '\n%s✔ Xong.%s\n' "$C_G" "$C_0"
 [ "$miss" -eq 1 ] && printf '%s  Còn thiếu gói ở trên — chạy lại ./install.sh khi có mạng.%s\n' "$C_Y" "$C_0"
-
-cat <<'EOF'
-
-  ── Bootstrap (làm MỘT LẦN, trước khi reboot lần đầu) ──
-
-    # tạo user (thay <tên> và mật khẩu)
-    useradd -m -G wheel -s /bin/bash <tên>
-    passwd <tên>
-    echo '%wheel ALL=(ALL:ALL) ALL' > /etc/sudoers.d/wheel
-    chmod 440 /etc/sudoers.d/wheel
-    visudo -c /etc/sudoers.d/wheel
-
-    # cài dotfiles cho user đó
-    su - <tên>
-    git clone <repo> ~/arch-config && cd ~/arch-config && ./install.sh
-
-  ── Bootloader systemd-boot (sau khi đã có user) ──
-
-    sudo pacman -S --needed systemd efibootmgr linux linux-firmware
-    sudo mkinitcpio -P
-    sudo bootctl install
-    sudo kernel-install add-all "$(uname -r)"
-
-  Xem README.md mục "Cài máy mới" để có trọn các lệnh.
-
-EOF
