@@ -97,9 +97,7 @@ export DEBIAN_FRONTEND=noninteractive
 pacman-key --init
 pacman-key --populate archlinux
 
-if [ -f '$REPO/etc/pacman.d/mirrorlist' ]; then
-  cp '$REPO/etc/pacman.d/mirrorlist' /etc/pacman.d/mirrorlist
-else
+if [ ! -f /etc/pacman.d/mirrorlist ] || [ ! -s /etc/pacman.d/mirrorlist ]; then
   echo 'Server = https://geo.mirror.pkgbuild.com/\$repo/os/\$arch' > /etc/pacman.d/mirrorlist
 fi
 pacman -Sy --needed --noconfirm
