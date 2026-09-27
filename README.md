@@ -119,26 +119,58 @@ mount --mkdir /dev/nvme0n1p1 /mnt/boot
 
 Xong phần này mới sang Bước 2.
 
-### Bước 2 · Cài hệ thống + dotfiles — 1 lệnh
+### Bước 2 · Vào live shell + kết nối mạng
 
-Sau khi vào live shell và có mạng:
+#### 2a · Boot từ USB
+
+1. **Rút USB** ra khỏi cổng đang cắm.
+2. Cắm vào **cổng USB khác** (USB vừa ghi thường không boot được ở chính cổng đó).
+3. Bật máy, nhấn **`F12`** ngay (ThinkPad Lenovo) → chọn USB trong menu boot.
+4. Chọn hạng mục đầu tiên (Arch Linux, mặc định sẵn).
+
+Vào được màn hình đen chữ trắng `root@archlinux#` là **thành công**.
+
+<details>
+<summary>Không thấy USB trong menu boot?</summary>
+
+- Thử **cổng USB khác** (ưu tiên cổng A2/C2 màu xanh — chậm hơn nhưng ổn định hơn với USB 3.0).
+- Trong BIOS (nhấn `F1` khi bật máy) kiểm tra **USB Boot** có được bật không.
+- Một số ThinkPad cần bật **USB UEFI Boot** trong `Security → Secure Boot`.
+
+</details>
+
+#### 2b · Vào mạng
 
 ```bash
-iwctl                                        # nếu là Wi-Fi
-device list
-station wlan0 connect <TÊN-WIFI>
-exit
+iwctl                                # nếu dùng Wi-Fi
+device list                          # ghi nhớ tên: thường là wlan0
+station wlan0 connect <TÊN-WIFI>     # nhập mật khẩu
+# "Password authentication successful" → exit
 
-ping -c3 archlinux.org                       # phải được 3 replies
-timedatectl set-ntp true
+ping -c3 archlinux.org               # phải được 3 replies
+timedatectl set-ntp true             # đồng hồ đúng, pacman không lỗi chữ ký
+```
 
+> ⚠️ **Không có mạng thì dừng ở đây.** `iwctl` không thấy adapter thì
+> cắm USB vào cổng khác, hoặc dùng điện thoại làm hotspot.
+> Không có mạng thì `pacstrap` tải không được gói nào.
+
+#### 2c · Cài hệ thống + dotfiles — **1 lệnh**
+
+```bash
 git clone https://github.com/dxtuyen/arch-config.git
 sudo arch-config/bootstrap.sh
 ```
 
+Script sẽ hỏi xác nhận — gõ chữ **`phai`** rồi Enter. Từ đó để máy chạy
+~10 phút, không cần gõ thêm gì.
+
 `bootstrap.sh` làm hết: `pacstrap` (kèm `sudo git efibootmgr intel-ucode`) ·
 múi giờ · locale · fstab bằng UUID · user + sudo · NetworkManager + iwd ·
 clone dotfiles và chạy `install.sh` · `mkinitcpio -P` · `bootctl install`.
+
+**Đăng nhập sau khi reboot:** user `doxuantuyen` · mật khẩu `63795664`
+(đổi ngay bằng `passwd` — mật khẩu này nằm trong script và lịch sử git).
 
 Hai lý do nó phải là script chứ không phải `archinstall` của Arch:
 
