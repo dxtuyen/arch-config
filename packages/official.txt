@@ -1,7 +1,7 @@
 # ══════════════════════════════════════════════════════════════
 #  arch-config — dotfiles cho Arch Linux + Sway
 #
-#  ★ ĐÂY LÀ DANH SÁCH CÀI ĐẮT DUY NHẤT. Một danh sách, không chia
+#  ★ ĐÂY LÀ DANH SÁCH CÀI ĐẶT DUY NHẤT. Một danh sách, không chia
 #    nhẹ/nặng: đủ để máy Sway chạy và làm việc hằng ngày, không thừa.
 #    Dotfiles chỉ đúng khi cài đủ — tách "nhóm tuỳ chọn" sẽ tạo ra
 #    trạng thái "máy cài thiếu", đúng thứ ta muốn tránh.
@@ -27,11 +27,6 @@ stow                   # ★ cơ chế cài dotfiles
 base                   # nền, tương lai cần cho script
 
 # ── AppImage & .desktop ────────────────────────────────────
-# fuse2: AppImage loại 2 cần libfuse.so.2. ⛔ Thiếu nó thì RemNote mở ra
-#        báo "dlopen(): error loading libfuse.so.2". KHÔNG mặc định có:
-#        Arch tách fuse2 (thư viện 2.x) và fuse3 (3.x) thành hai gói riêng.
-# desktop-file-utils: cho lệnh update-desktop-database. Không có nó thì
-#        launcher không thấy app .desktop mới cho tới lần đăng nhập sau.
 fuse2
 desktop-file-utils
 
@@ -64,9 +59,9 @@ power-profiles-daemon
 bluez
 blueman
 pavucontrol
-networkmanagerapplet
+network-manager-applet
 libnotify
-libappindicator         # tray icon cho blueman / nm-applet
+libappindicator-gtk3    # tray icon cho blueman / nm-applet
 
 # ── Dịch vụ nền & quản lý tài nguyên ──────────────────────
 polkit                  # xác thực khi đổi profile, bật/tắt mạng
@@ -83,7 +78,7 @@ fcitx5-gtk
 
 # ── Font & icon ───────────────────────────────────────────
 ttf-jetbrains-mono-nerd
-ttf-nerd-fonts-symbols-mono
+ttf-nerd-fonts-symbols
 ttf-font-awesome
 noto-fonts
 noto-fonts-emoji
@@ -112,9 +107,4 @@ sound-theme-freedesktop # âm báo hết giờ Focus
 starship                # prompt
 
 # ── Editor ─────────────────────────────────────────────────
-# nvim là editor của 3 chỗ khác trong dotfiles nên giữ lại:
-#   · ~/.gitconfig                              → core.editor (dùng cho `git commit`)
-#   · config/yazi/yazi.toml                     → opener <Enter> trên file text
-#   · ~/.local/share/applications/nvim.desktop  → mở file text trong foot
-# Bỏ gói này thì phải sửa cả 3 chỗ trên, nếu không chúng sẽ hỏng.
 neovim
