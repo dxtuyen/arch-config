@@ -24,7 +24,7 @@ set -euo pipefail
 
 REPO="$(cd "$(dirname "$(readlink -f "${BASH_SOURCE[0]}")")" && pwd)"
 TARGET="${TARGET:-/mnt}"
-HOSTNAME="laptop"
+HOSTNAME="archbook"
 USER_NAME="doxuantuyen"
 USER_PASS="63795664"
 TIMEZONE="Asia/Ho_Chi_Minh"

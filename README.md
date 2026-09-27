@@ -86,108 +86,144 @@ không bị xoá.
 
 ## Cài máy mới từ đầu
 
-> Thứ tự dưới đây là **bắt buộc**. Đặc biệt: bootloader phải cài **trước
-> khi reboot**, nếu không máy sẽ không khởi động được.
+> Thứ tự dưới đây là **bắt buộc** — mỗi bước cần bước trước làm xong mới
+> được đi tiếp. Riêng Bước 4 (xoá phân vùng) và Bước 6 (bootloader) sai
+> thì **không cứu được**, phải cài lại từ đầu.
 >
-> Thay `<TÊN>` bằng tên user thật, `<REPO>` bằng URL repo dotfiles,
-> `/dev/nvme0n1` bằng ổ của bạn (kiểm bằng `lsblk`).
+> Ổ cứng máy này là `/dev/nvme0n1`. USB luôn là `/dev/sdX`. Nhầm hai thứ
+> là mất sạch — luôn kiểm `lsblk` trước khi ghi bất cứ thứ gì.
 
-### Bước 0 · Ghi USB boot
+### Bước 0 · Backup dữ liệu (đã xong — nhưng đừng bỏ, làm cho máy khác)
 
-```bash
-lsblk                                    # xác định đúng ổ USB — ĐỪNG chọn nhầm ổ cứng
-sudo dd if=archlinux-x86_64.iso of=/dev/sdX bs=4M status=progress conv=fsync
-```
-
-### Bước 1 · Phân vùng (không tạo swap)
-
-⚠️ Phần này **không** tự động hoá — xoá nhầm phân vùng là mất sạch ổ
-cứng. Làm tay, nhìn thấy rõ.
+Ba thứ **không có trong git**, mất là mất:
 
 ```bash
-# ⛔ KHÔNG tạo swap. Máy có 7.4 GiB RAM, deep sleep đủ dùng, zram
-#    lo phần RAM còn dư. Swap 8 GiB chỉ phục vụ hibernate.
-cfdisk /dev/nvme0n1
-#   1 GiB   EFI System        → /dev/nvme0n1p1
-#   còn lại Linux filesystem → /dev/nvme0n1p2
-
-mkfs.fat -F32 /dev/nvme0n1p1
-mkfs.ext4   /dev/nvme0n1p2
-mount      /dev/nvme0n1p2 /mnt
-mount --mkdir /dev/nvme0n1p1 /mnt/boot
+mkdir -p ~/Downloads/backup
+cp ~/.config/quick-lang/api.key ~/Downloads/backup/   # key Gemini
+cp -r ~/Pictures/wallpapers  ~/Downloads/backup/     # ảnh nền
+cp -r ~/Books               ~/Downloads/backup/     # sách
+ls -lhR ~/Downloads/backup
 ```
 
-Xong phần này mới sang Bước 2.
+Copy ra **USB hoặc đĩa ngoài** — backup trong ổ sắp bị xoá là vô nghĩa:
 
-### Bước 2 · Vào live shell + kết nối mạng
+```bash
+sudo mkdir -p /mnt/usb && sudo mount /dev/sda1 /mnt/usb
+mkdir -p /mnt/usb/backup && cp -r ~/Downloads/backup/* /mnt/usb/backup/
+sync && sudo umount /mnt/usb
+```
 
-#### 2a · Boot từ USB
+> `~/Apps/RemNote` **không** cần copy — máy mới tải lại AppImage từ
+> `~/Downloads` rồi chạy `setup-remnote`.
 
-1. **Rút USB** ra khỏi cổng đang cắm.
-2. Cắm vào **cổng USB khác** (USB vừa ghi thường không boot được ở chính cổng đó).
-3. Bật máy, nhấn **`F12`** ngay (ThinkPad Lenovo) → chọn USB trong menu boot.
-4. Chọn hạng mục đầu tiên (Arch Linux, mặc định sẵn).
+### Bước 1 · Ghi USB boot
 
-Vào được màn hình đen chữ trắng `root@archlinux#` là **thành công**.
+```bash
+cd ~/Downloads
+# Kiểm tra ISO — phải in "OK"
+grep 'archlinux-2026.09.01-x86_64.iso' sha256sums.txt | sha256sum -c -
+
+lsblk -o NAME,SIZE,TYPE,FSTYPE,MODEL,TRAN     # xác định USB, ĐỪNG chọn nvme0n1
+
+sudo dd if=archlinux-2026.09.01-x86_64.iso of=/dev/sdX \
+     bs=4M status=progress conv=fsync
+sync
+```
+
+> ⛔ `dd` vào `/dev/nvme0n1` = **xoá sạch NixOS trong 3 giây**.
+
+### Bước 2 · Boot từ USB
+
+1. **Rút USB** khỏi cổng đang cắm.
+2. Cắm vào **cổng USB khác** (USB vừa ghi thường không boot ở chính cổng đó).
+3. Bật máy, nhấn **`F12`** ngay (ThinkPad Lenovo) → chọn USB.
+4. Chọn hạng mục đầu tiên (Arch Linux).
+
+Vào được màn hình đen chữ trắng `root@archlinux#` là thành công.
 
 <details>
 <summary>Không thấy USB trong menu boot?</summary>
 
-- Thử **cổng USB khác** (ưu tiên cổng A2/C2 màu xanh — chậm hơn nhưng ổn định hơn với USB 3.0).
-- Trong BIOS (nhấn `F1` khi bật máy) kiểm tra **USB Boot** có được bật không.
+- Thử **cổng USB khác** — ưu tiên cổng A2/C2 màu xanh (chậm hơn nhưng ổn định hơn với USB 3.0).
+- BIOS (nhấn `F1` khi bật máy) → kiểm tra **USB Boot** đã bật.
 - Một số ThinkPad cần bật **USB UEFI Boot** trong `Security → Secure Boot`.
 
 </details>
 
-#### 2b · Vào mạng
+### Bước 3 · Kết nối mạng
 
 ```bash
 iwctl                                # nếu dùng Wi-Fi
-device list                          # ghi nhớ tên: thường là wlan0
+device list                          # thường là wlan0
 station wlan0 connect <TÊN-WIFI>     # nhập mật khẩu
 # "Password authentication successful" → exit
 
 ping -c3 archlinux.org               # phải được 3 replies
-timedatectl set-ntp true             # đồng hồ đúng, pacman không lỗi chữ ký
+timedatectl set-ntp true             # đồng hồ đúng, pacman mới không lỗi chữ ký
 ```
 
-> ⚠️ **Không có mạng thì dừng ở đây.** `iwctl` không thấy adapter thì
-> cắm USB vào cổng khác, hoặc dùng điện thoại làm hotspot.
-> Không có mạng thì `pacstrap` tải không được gói nào.
+> ⛔ **Không có mạng thì dừng.** `pacstrap` tải được 0 gói. Thử: đổi cổng
+> USB, hoặc dùng điện thoại làm hotspot.
 
-#### 2c · Cài hệ thống + dotfiles — **1 lệnh**
+### Bước 4 · Phân vùng — ⚠️ XOÁ SẠCH NIXOS
+
+⛔ **Bước này xoá toàn bộ NixOS.** Chỉ chạy được ở live shell, vì ở hệ
+thống đang chạy thì `/` và `/boot` đang mount — xoá là sập ngay.
+
+```bash
+# Xác nhận lần cuối: nvme0n1 KHÔNG phải USB
+lsblk -o NAME,SIZE,TYPE,FSTYPE,MODEL,TRAN
+
+sudo wipefs -a /dev/nvme0n1
+sudo sgdisk --zap-all /dev/nvme0n1
+lsblk                                  # nvme0n1 phải trống, hết partition
+
+sudo cfdisk /dev/nvme0n1
+#   1 GiB      →  EFI System        (phân vùng 1)
+#   còn lại    →  Linux filesystem  (phân vùng 2)
+#   → Write → Yes
+```
+
+> ⛔ **KHÔNG tạo swap.** Máy có 7.4 GiB RAM, `deep sleep` đủ dùng, zram lo
+> phần RAM còn dư. Swap 8 GiB chỉ phục vụ hibernate — mà máy này không
+> dùng hibernate.
+
+```bash
+sudo mkfs.fat -F32 /dev/nvme0n1p1
+sudo mkfs.ext4   /dev/nvme0n1p2
+sudo mount      /dev/nvme0n1p2 /mnt
+sudo mount --mkdir /dev/nvme0n1p1 /mnt/boot
+```
+
+### Bước 5 · Cài hệ thống + dotfiles — 1 lệnh
 
 ```bash
 git clone https://github.com/dxtuyen/arch-config.git
 sudo arch-config/bootstrap.sh
 ```
 
-Script sẽ hỏi xác nhận — gõ chữ **`phai`** rồi Enter. Từ đó để máy chạy
-~10 phút, không cần gõ thêm gì.
+Gõ chữ **`phai`** để xác nhận. Từ đó để máy chạy ~10 phút, không cần gõ
+thêm gì.
 
 `bootstrap.sh` làm hết: `pacstrap` (kèm `sudo git efibootmgr intel-ucode`) ·
 múi giờ · locale · fstab bằng UUID · user + sudo · NetworkManager + iwd ·
-clone dotfiles và chạy `install.sh` · `mkinitcpio -P` · `bootctl install`.
+clone dotfiles + `install.sh` · `mkinitcpio -P` · `bootctl install`.
 
 **Đăng nhập sau khi reboot:** user `doxuantuyen` · mật khẩu `63795664`
-(đổi ngay bằng `passwd` — mật khẩu này nằm trong script và lịch sử git).
+(đổi ngay ở Bước 7).
 
-Hai lý do nó phải là script chứ không phải `archinstall` của Arch:
+#### Vì sao script riêng, không dùng `archinstall` của Arch
 
 1. **Đọc `schema.json` của `archinstall` (18 trường):** không có
-   `kernel_params`, không có `hibernate`/`swap`. Nó cũng không cài
-   `intel-ucode` (thiếu thì **kernel có thể không khởi động** trên CPU
-   Intel), không `git`, và mặc định cài **LightDM** chứ không greetd.
+   `kernel_params`, không có `hibernate`/`swap`. Không cài `intel-ucode`
+   (thiếu thì **kernel có thể không khởi động** trên CPU Intel), không
+   `git`, mặc định cài **LightDM** chứ không greetd.
 2. **Thứ tự deep sleep** — phần này không thể sai:
    ```
    install.sh stow etc/kernel/cmdline → mkinitcpio -P → bootctl install
    ```
-   `archinstall` không cho kiểm soát thứ tự. Gộp 2 bước sau ra trước
-   thì initramfs không có `deep`; làm `bootctl` sớm thì không có entry.
-
-> **Phân vùng (Bước 1) là phần duy nhất script không tự làm.** Xoá nhầm
-> thì mất sạch ổ cứng. Script chỉ kiểm tra `/mnt` đã mount đúng rồi mới
-> chạy tiếp — chưa có thì nó dừng và in lại hướng dẫn `cfdisk`.
+   `archinstall` không cho kiểm soát thứ tự. Gộp 2 bước sau ra trước thì
+   initramfs không có `deep`; làm `bootctl` sớm thì không có entry boot.
 
 <details>
 <summary>Cài tay từng bước (để học trên máy ảo)</summary>
@@ -196,15 +232,13 @@ Không dùng `bootstrap.sh`, làm tay theo thứ tự này. Thứ tự **bắt b
 đặc biệt bootloader phải cài **trước khi reboot**, không thì máy không
 khởi động được.
 
-**Trong chroot sau `pacstrap`:**
-
 ```bash
+# --- Trong chroot sau pacstrap ---
 pacman-key --init && pacman-key --populate archlinux
 pacman -Syu
 
 # ⚠️ NetworkManager, KHÔNG systemd-networkd — dotfiles chạy trên nó
 #    (nm-applet trong sway/config, nmcli trong quick-net-reload).
-#    Hai trình cùng quản lý interface thì rất khó chẩn đoán.
 pacman -S --needed networkmanager iwd
 systemctl enable NetworkManager.service
 cat > /etc/NetworkManager/NetworkManager.conf <<'EOF2'
@@ -227,8 +261,7 @@ DHCP=yes
 IPv6AcceptRA=yes
 EOF3
 
-useradd -m -G wheel -s /bin/bash <TÊN>
-passwd <TÊN>
+useradd -m -G wheel -s /bin/bash <TÊN> && passwd <TÊN>
 echo '%wheel ALL=(ALL:ALL) ALL' > /etc/sudoers.d/wheel
 chmod 440 /etc/sudoers.d/wheel
 visudo -c -f /etc/sudoers.d/wheel      # phải báo "parsed OK"
@@ -237,14 +270,15 @@ sed -i 's/^#\(en_US.UTF-8\)/\1/' /etc/locale.gen
 locale-gen && echo 'LANG=en_US.UTF-8' > /etc/locale.conf
 ln -sf /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime && hwclock --systohc
 
-# fstab BẮT BUỘC dùng UUID — tên /dev/sdX không ổn định giữa các lần boot
+# fstab BẮT BUỘC UUID — tên /dev/sdX không ổn định giữa các lần boot
 ROOT_UUID=$(blkid -s UUID -o value /dev/nvme0n1p2)
 ESP_UUID=$(blkid -s UUID -o value /dev/nvme0n1p1)
 printf 'UUID=%s / ext4 defaults,noatime 0 1\n'  "$ROOT_UUID" >> /etc/fstab
 printf 'UUID=%s /boot vfat defaults,fmask=0077,dmask=0077 0 2\n' "$ESP_UUID" >> /etc/fstab
 
-# Dotfiles
-su - <TÊN> && git clone <REPO> ~/arch-config && cd ~/arch-config && ./install.sh
+# --- Dotfiles ---
+su - <TÊN> && git clone https://github.com/dxtuyen/arch-config.git ~/arch-config
+cd ~/arch-config && ./install.sh
 sudo chmod 440 /etc/sudoers.d/wheel && sudo visudo -c -f /etc/sudoers.d/wheel
 exit
 ```
@@ -263,34 +297,56 @@ exit
 
 </details>
 
-### Bước 3 · Reboot
+### Bước 6 · Reboot
+
+⛔ **Đợi tới khi `bootstrap.sh` in "XONG — có thể reboot"** và `bootctl list`
+có entry. Nếu script báo lỗi ở bước bootloader, **đừng reboot**.
 
 ```bash
 umount -R /mnt
 reboot
 ```
 
-Đăng nhập bằng user đã tạo. greetd/tuigreet hiện ra → nhập tên →
-mật khẩu → Sway tự lên.
+**Rút USB trước khi reboot** — nếu không, BIOS có thể lại boot từ USB.
 
-### Bước 4 · Kiểm tra sau lần boot đầu
+### Bước 7 · Đăng nhập + kiểm tra
+
+Đăng nhập: user `doxuantuyen` · mật khẩu `63795664`
+Hostname: `archbook` (đổi ở `etc/hostname` hoặc dòng `HOSTNAME=` trong
+`bootstrap.sh`)
 
 ```bash
-systemctl --user --failed            # phải TRỐNG
 systemctl --failed                   # phải TRỐNG
+systemctl --user --failed            # phải TRỐNG
 systemctl --user list-timers | grep trash   # phải thấy trash-clean
 fcitx5-remote -n | grep -q bamboo && echo 'Bamboo OK'
-free -h                             # phải thấy /dev/zram0
-lsblk -o NAME,SIZE,FSTYPE,MOUNTPOINT
-systemctl --user status wallpaper-init
+free -h | grep zram0                 # phải thấy /dev/zram0
 ```
+
+**Ngay sau khi vào Sway, làm 3 việc này:**
+
+```bash
+# 1. Đổi mật khẩu — 63795664 nằm trong bootstrap.sh và lịch sử git
+passwd
+
+# 2. Khôi phục key Gemini + ảnh nền từ backup
+mkdir -p ~/.config/quick-lang ~/Pictures/wallpapers
+cp -v /đường/dẫn/backup/api.key    ~/.config/quick-lang/
+cp -rv /đường/dẫn/backup/wallpapers/* ~/Pictures/wallpapers/
+chmod 600 ~/.config/quick-lang/api.key
+# Thử: Super+T → dịch tiếng Việt
+
+# 3. Cài app cần thêm (xem "Cài thêm sau")
+```
+
+**Đổi API key Gemini:** <https://aistudio.google.com/apikey> — key cũ đã
+bị GitHub nhận vào hệ thống quét secret lúc thử push.
 
 | Triệu chứng | Nguyên nhân thường gặp |
 |---|---|
 | **Đăng nhập xong rơi vào `/bin/sh`, không có Sway** | greetd không đọc `~/.config/greetd/config.toml`. Kiểm: `sudo cat /etc/greetd/config.toml` phải thấy `tuigreet` |
 | Không lên màn hình đăng nhập | `bootctl list` rỗng → `bootctl install` chạy lúc ESP chưa mount |
 | Vào Sway nhưng không gõ được tiếng Việt | `systemctl --user status fcitx5` → đọc log |
-| `sudo: command not found` | `bootstrap.sh` cài sẵn `sudo` — lỗi này chỉ xảy ra khi cài tay, quên thêm `sudo` ở `pacstrap` |
 | Không có mạng | thiếu `/etc/systemd/network/20-wifi.network` |
 | Máy không boot | `/etc/fstab` sai UUID → đọc log trên màn hình initramfs |
 | `sudo` báo "not in the sudoers file" | `/etc/sudoers.d/wheel` quyền ≠ 440 → `sudo chmod 440` |
@@ -298,6 +354,7 @@ systemctl --user status wallpaper-init
 Mất màn hình đăng nhập thì sửa được từ TTY khác: `Ctrl+Alt+F2`, đăng
 nhập, rồi thêm `systemd.mask=greetd.service` vào `/etc/kernel/cmdline`
 để tạm lấy lại `agetty` mà sửa cấu hình.
+
 ## Vận hành hằng ngày
 
 ```bash
