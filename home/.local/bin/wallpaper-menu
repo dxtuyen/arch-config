@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+# Rofi hiện THUMBNAIL từng ảnh trong ~/Pictures/wallpapers để nhìn mà
+# chọn. Gắn Alt+Shift+W. (Alt+W = random.)
+#
+# Lưới 3 cột × 3 hàng (≈780px, vừa màn 1080p): ảnh 10em bo góc TRÊN,
+# tên file DƯỚI ảnh (dài quá tự hiện "…"). Quá 9 ảnh → tự cuộn thanh ở
+# cạnh phải. Ảnh đang đặt được đánh dấu "●" ở đầu tên.
+set -u
+# shellcheck source=../config/lib/wallpaper.sh
+. "${XDG_CONFIG_HOME:-$HOME/.config}/lib/wallpaper.sh"
+
+wallpaper_ensure_daemon || exit 0
+
+mapfile -t imgs < <(wallpaper_list)
+if [ "${#imgs[@]}" -eq 0 ]; then
+  notify-send -a wallpaper "wallpaper-menu" \
+    "Chưa có ảnh nào trong $WALL_DIR — thêm bằng yazi (Super+Y). Hiện đang dùng màu nền dự phòng."
+  exit 0
+fi
+
+cur="$(wallpaper_current)"
+
+# Con trỏ sẵn trên ảnh đang dùng: rofi trả về INDEX 0-based của dòng
+# được chọn ("-format i" + "-no-custom" chặn nhập tay) → bền với mọi
+# tên file lạ, không cần cắt chuỗi "● " như cách cũ.
+sel=0
+for i in "${!imgs[@]}"; do
+  if [ "${imgs[$i]}" = "$cur" ]; then sel=$i; break; fi
+done
+
+# Mỗi mục gửi rofi: "<tên ảnh>\0icon\x1f<đường dẫn>" → rofi tự bóc
+# metadata khỏi kết quả và dùng icon làm thumbnail. -theme-str chỉ áp cho
+# lần chạy này, không đụng ~/.config/rofi.
+choice_idx="$(
+  for f in "${imgs[@]}"; do
+    mark=""
+    [ "$f" = "$cur" ] && mark="● "
+    printf '%s%s\0icon\037%s\n' "$mark" "$(basename -- "$f")" "$f"
+  done | rofi -dmenu -i -show-icons -l 3 -p '🖼️ Wallpaper' \
+    -mesg 'Enter: đặt nền · ● = đang dùng · Esc: huỷ' \
+    -no-custom -format i -selected-row "$sel" \
+    -theme-str 'listview { columns: 3; spacing: 10px; flow: horizontal; }' \
+    -theme-str 'element { orientation: vertical; children: [element-icon, element-text]; padding: 6px; spacing: 6px; }' \
+    -theme-str 'element-icon { size: 10em; border-radius: 10px; }' \
+    -theme-str 'element-text { horizontal-align: center; }'
+)" || exit 0
+
+[[ "$choice_idx" =~ ^[0-9]+$ ]] || exit 0
+[ "$choice_idx" -lt "${#imgs[@]}" ] || exit 0
+
+choice="${imgs[$choice_idx]}"
+if [ "$choice" = "$cur" ]; then
+  notify-send -a wallpaper "wallpaper-menu" "Ảnh này đang là nền hiện tại"
+  exit 0
+fi
+exec "$HOME/.local/bin/wallpaper-set" "$choice"

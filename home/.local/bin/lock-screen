@@ -1,0 +1,24 @@
+#!/usr/bin/env bash
+# Khoá màn hình. Gắn phím Super+Shift+L, và tự chạy sau 300s không thao
+# tác (swayidle) + trước khi máy ngủ.
+set -u
+
+# Chống khoá chồng — nếu không, phải mở khoá 2 lần.
+if pgrep -x swaylock >/dev/null 2>&1; then
+  exit 0
+fi
+
+# Tìm ảnh tương đối với chính repo này thay vì ghi cứng ~/arch-config,
+# để clone ở thư mục tên bất kỳ vẫn chạy. `readlink -f` xuyên qua symlink
+# của stow để lấy đường dẫn thật.
+self="$(readlink -f "${BASH_SOURCE[0]}")"
+repo="$(dirname "$(dirname "$(dirname "$(dirname "$self")")")")"
+image="$repo/lockscreen/lockscreen.jpg"
+
+if [ ! -f "$image" ]; then
+  printf 'lock-screen: không thấy ảnh %s\n' "$image" >&2
+  exit 1
+fi
+
+# -f để swayidle không bị block; -e để Enter trống không tính nhập sai.
+exec swaylock -f -e -i "$image"

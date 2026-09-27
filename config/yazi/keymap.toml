@@ -1,0 +1,38 @@
+# Keymap Yazi — CỐ Ý CHỈ KHAI PHẦN CẦN THIẾT.
+#
+# ⚠️ Yazi tự merge file này với preset mặc định. `prepend_keymap` được
+#    chèn TRƯỚC preset nên phím khai ở đây thắng phím mặc định cùng
+#    tên; nếu dùng khoá `keymap` (không prepend/append) thì sẽ XOÁ SẠCH
+#    toàn bộ phím tắt mặc định — tránh.
+#
+# Dùng kiểu MẢNG `[mgr] prepend_keymap = [...]` (không phải
+# `[[mgr.prepend_keymap]]`): plugin cảnh báo TOML không cho trộn 2 kiểu
+# trong cùng 1 file, và kiểu mảng gọn hơn khi có nhiều binding.
+#
+# Plugin `smart-enter` do install.sh clone về ~/.config/yazi/plugins/.
+# Nếu clone lỗi (không có mạng), dòng <Enter> dưới đây sẽ báo lỗi —
+# xoá dòng đó là dùng lại được preset mặc định.
+
+[mgr]
+prepend_keymap = [
+  # ⭐ <Enter> tự rẽ nhánh theo loại mục:
+  #    thư mục → đi vào (KHÔNG đụng bảng `use`)
+  #    file     → mở app theo mime
+  # Không có plugin này thì preset khai thư mục là
+  # { mime = "folder/*", use = [ "edit", ...] } với "edit" ĐỨNG ĐẦU,
+  # kết hợp với [opener] edit ở yazi.toml → bấm <Enter> vào thư mục
+  # lại mở nvim. Rất khó chịu khi chủ yếu duyệt file.
+  { on = "<Enter>", run = "plugin smart-enter", desc = "Enter the child directory, or open the file" },
+
+  { on = "B", run = 'shell --orphan "foot --title=term -D \"$PWD\""', desc = "Open a new terminal" },
+  { on = "b", run = 'shell --block "$SHELL"', desc = "Open a shell here (in Yazi's window)" },
+]
+
+# ── Phím KHÔNG cần khai lại ────────────────────────────────
+# ⚠️ CỐ Ý KHÔNG gắn smart-enter vào phím `l`. `l` mặc định của yazi =
+#   `enter` → chỉ đi vào thư mục con, đúng như trước. Gắn plugin vào
+#   `l` sẽ làm `l` MỞ FILE — không mong muốn. <Right> cũng là `enter`.
+#
+# Thùng rác: `g t` là phím CỦA PRESET yazi (cùng nhóm g h / g c / g d /
+# g f) — không khai trùng. Xoá mềm `d`, xoá hẳn `D`. Bên trong thùng
+# rác dùng `D` để xoá sạch cả file lẫn .trashinfo.

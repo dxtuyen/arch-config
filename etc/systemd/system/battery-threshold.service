@@ -1,0 +1,23 @@
+# Ngưỡng sạc pin 85–90%.
+#
+# Sạc 100% liên tục là nguyên nhân chính làm chai pin. Giới hạn ở
+# 85–90% giữ pin khoẻ mà vẫn đủ dùng cả ngày.
+#
+# Script do máy này tự chạy: đọc /sys/class/power_supply/BAT*/ và tự
+# chọn đúng tên file sysfs (driver Intel TI và các driver khác đặt tên
+# khác nhau — có `charge_control_*` mới, cũng có `charge_*`).
+# Máy không hỗ trợ thì in thông báo và thoát 0, không lỗi.
+
+[Unit]
+Description=Set battery charge threshold to 85-90%
+Documentation=https://www.kernel.org/doc/html/latest/power/pm-adapter.html
+ConditionDirectoryExists=/sys/class/power_supply
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/local/bin/set-battery-threshold
+TimeoutSec=10
+
+[Install]
+WantedBy=multi-user.target

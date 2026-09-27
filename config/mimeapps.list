@@ -1,0 +1,49 @@
+# Ứng dụng mặc định theo loại file — dùng khi double-click trong
+# Thunar, khi `xdg-open` / yazi gọi tới.
+#
+# ⚠️ File này chỉ khai app ĐANG CÓ trong danh sách gói. Thêm app sau
+#   này thì thêm luôn dòng ở đây — không có ý định trỏ tới app chưa
+#   cài, vì khi đó double-click sẽ báo lỗi khó hiểu hơn là im lặng.
+#
+# Run `update-desktop-database ~/.local/share/applications` sau khi thêm
+# entry .desktop mới, rồi `xdg-mime default <file.desktop> <mime>`.
+
+[Default Applications]
+
+# ── Ảnh → imv ──────────────────────────────────────────────
+# Liệt kê TAY thay vì đẩy cả gói imv vào đây: imv có 2 entry cùng khai
+# MimeType — `imv-dir.desktop` (mở THƯ MỤC chứa ảnh) và `imv.desktop`
+# (mở đúng ảnh đó). Cơ chế merge mặc định luôn APPEND nên imv-dir sẽ
+# đứng đầu → double-click 1 ảnh lại ra cả thư mục. Ở đây ép đúng.
+image/x-farbfeld=imv.desktop
+image/tiff=imv.desktop
+image/tiff-fx=imv.desktop
+image/png=imv.desktop
+image/x-png=imv.desktop
+image/jpeg=imv.desktop
+image/jpg=imv.desktop
+image/pjpeg=imv.desktop
+image/svg+xml=imv.desktop
+image/gif=imv.desktop
+image/bmp=imv.desktop
+image/x-bmp=imv.desktop
+image/heif=imv.desktop
+image/avif=imv.desktop
+image/jxl=imv.desktop
+image/webp=imv.desktop
+image/qoi=imv.desktop
+
+# ── Sách điện tử → foliate ─────────────────────────────────
+# `application/x-mobi8-ebook` KHÔNG phải mime thật → dòng mapping mobi
+# kiểu đó gần như chết. Hai mime đúng của foliate:
+application/epub+zip=com.github.johnfactotum.Foliate.desktop
+application/x-mobipocket-ebook=com.github.johnfactotum.Foliate.desktop
+application/vnd.amazon.mobi8-ebook=com.github.johnfactotum.Foliate.desktop
+application/x-fictionbook+xml=com.github.johnfactotum.Foliate.desktop
+application/x-zip-compressed-fb2=com.github.johnfactotum.Foliate.desktop
+application/vnd.comicbook+zip=com.github.johnfactotum.Foliate.desktop
+# Đọc sách trực tiếp từ feed OPDS
+x-scheme-handler/opds=com.github.johnfactotum.Foliate.desktop
+
+# ⚠️ LRF (Sony Reader): foliate KHÔNG hỗ trợ, không còn app nào mở
+#   được → cố ý không khai. Thư viện hiện tại không có file .lrf.

@@ -1,0 +1,44 @@
+# Theme Yazi — Tokyo Night, khớp foot và Waybar.
+#
+# File này CHỈ ghi đè những khoá có NỀN MÀU. Đó là nhóm duy nhất bị
+# hỏng, vì yazi mặc định tô bằng TÊN MÀU ANSI (`fg="white"`,
+# `bg="green"`) — giả định bảng màu kiểu cổ điển (white=#ffffff,
+# green = xanh TỐI). Bảng Tokyo Night thì cả 8 màu ANSI đều là PASTEL
+# SÁNG → "chữ trắng" thành #a9b1d6, "nền xanh" thành #9ece6a → chữ
+# sáng đè lên nền sáng.
+#
+# Mọi cặp dưới đây đã đo tương phản WCAG trên nền terminal #1a1b26
+# (chuẩn ≥ 4.5:1): thấp nhất 5.33:1, đều đạt chuẩn AA.
+#
+# Màu CHỮ đơn lẻ (tên file, viền khung, từ khoá tìm kiếm) thì KHÔNG
+# ghi: mọi màu ANSI Tokyo Night trên nền tối đều ≥ 6.46:1 nên vốn đã
+# an toàn. Ô tick `marker_*` cũng để nguyên — fg==bg nên thực chất
+# là khối đặc, không phải chữ.
+
+[mgr]
+# Badge đếm file (đã copy / đã cut / đang chọn): chữ TỐI trên nền màu
+count_copied   = { fg = "#1a1b26", bg = "#9ece6a", bold = true }  # 9.35:1
+count_cut      = { fg = "#1a1b26", bg = "#f7768e", bold = true }  # 6.46:1
+count_selected = { fg = "#1a1b26", bg = "#e0af68", bold = true }  # 8.55:1
+
+[mode]
+# Thanh trạng thái ở giữa dưới — nhìn liên tục nên dùng nền TỐI MỜ +
+# chữ SÁNG: dịu mắt mà vẫn rõ (thay vì nền xanh dương chữ trắng).
+normal_main = { bg = "#292e42", fg = "#c0caf5", bold = true }  # 8.32:1
+normal_alt  = { bg = "#292e42", fg = "#7aa2f7" }              # 5.33:1
+
+# Đang tick file (Space): nền ĐỎ + chữ TỐI — cố ý nổi bật vì đây là
+# trạng thái cần nhận ra ngay. V (unset) dùng chung bảng màu.
+select_main = { bg = "#f7768e", fg = "#1a1b26", bold = true }  # 6.46:1
+select_alt  = { bg = "#292e42", fg = "#f7768e" }
+unset_main  = { bg = "#f7768e", fg = "#1a1b26", bold = true }
+unset_alt   = { bg = "#292e42", fg = "#f7768e" }
+
+[status]
+# Thanh tiến trình copy/move ở góc dưới
+progress_normal = { fg = "#9ece6a", bg = "#1a1b26" }  # 9.35:1
+progress_error  = { fg = "#f7768e", bg = "#1a1b26" }  # 6.46:1
+
+[tabs]
+active   = { bg = "#7aa2f7", fg = "#1a1b26", bold = true }  # 6.79:1
+inactive = { fg = "#7aa2f7", bg = "#16161e" }                 # 7.14:1

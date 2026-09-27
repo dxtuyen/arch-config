@@ -1,0 +1,4 @@
+# Thunar đọc khoá này khi chạy action "Open Terminal Here" (UCA).
+# Đặt Foot làm terminal mặc định — không cần uca.xml riêng vì
+# "Open Terminal Here" đã là action mặc định của thunar-uca.
+TerminalEmulator=foot

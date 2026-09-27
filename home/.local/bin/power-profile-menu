@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Chọn power profile. Mở từ Super+Shift+P (menu nguồn) hoặc bấm vào icon
+# trên thanh trạng thái.
+set -u
+
+current_label="$(case "$(powerprofilesctl get)" in
+  power-saver) echo "Power Saver"   ;;
+  balanced)    echo "Balanced"      ;;
+  performance) echo "Performance"  ;;
+  *)           echo "?"             ;;
+esac)"
+
+MENU="🔋 Power Saver
+⚖️ Balanced
+🚀 Performance"
+
+choice="$(printf '%s\n' "$MENU" | rofi -dmenu -i -p "Power Profile" \
+  -mesg "Hiện tại: $current_label — chọn profile rồi Enter")"
+
+case "$choice" in
+  "🔋 Power Saver")
+    powerprofilesctl set power-saver
+    notify-send -a power-profiles -i "battery" -t 2000 "Power Profile" "Power Saver" ;;
+  "⚖️ Balanced")
+    powerprofilesctl set balanced
+    notify-send -a power-profiles -i "power-profile-balanced" -t 2000 "Power Profile" "Balanced" ;;
+  "🚀 Performance")
+    powerprofilesctl set performance
+    notify-send -a power-profiles -i "power-profile-performance" -t 2000 "Power Profile" "Performance" ;;
+esac

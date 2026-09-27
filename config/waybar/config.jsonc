@@ -1,0 +1,207 @@
+// ══════════════════════════════════════════════════════════════
+//  Waybar — Tokyo Night
+//  Nạp lại:  Super+Shift+C
+// ══════════════════════════════════════════════════════════════
+{
+  "layer": "top",
+  "position": "top",
+  "height": 30,
+  "spacing": 4,
+
+  "modules-left":  ["sway/workspaces", "sway/window", "sway/mode", "sway/scratchpad"],
+  "modules-center": ["custom/study", "clock"],
+  "modules-right": [
+    "custom/inhibit",
+    "power-profiles-daemon",
+    "pulseaudio",
+    "backlight",
+    "temperature",
+    "battery",
+    "cpu",
+    "memory",
+    "tray"
+  ],
+
+  // ── Workspace ────────────────────────────────────────────
+  "sway/workspaces": {
+    "disable-scroll": true,
+    "warp-on-scroll": false,
+    "format": "{name}",
+    // Ghim cả workspace đang trống để thanh không nhảy layout.
+    "persistent-workspaces": {
+      "1.main":   [],
+      "2.AI":     [],
+      "3.code":   [],
+      "4.others": []
+    }
+  },
+
+  // ── Cửa sổ hiện tại ──────────────────────────────────────
+  "sway/window": {
+    "format": "{title}",
+    "max-length": 60,
+    "tooltip": true
+  },
+
+  "sway/mode": { "format": "{}" },
+
+  "sway/scratchpad": {
+    "format": "{icon} {count}",
+    "show-empty": false,
+    "format-icons": ["", ""],
+    "tooltip": true,
+    "tooltip-format": "{app}: {title}"
+  },
+
+  // ── Đồng hồ Focus ────────────────────────────────────────
+  // `study status` trả JSON. signal 8 = cập nhật mỗi giây khi phiên
+  // chạy; signal 7 = cập nhật khi trạng thái chống idle đổi.
+  "custom/study": {
+    "exec": "~/.local/bin/study status",
+    "signal": 8,
+    "return-type": "json",
+    "on-click": "~/.local/bin/pomodoro-menu"
+  },
+
+  // Icon mắt: xanh = phiên chạy, vàng = bật tay, mờ = không chống idle.
+  "custom/inhibit": {
+    "exec": "~/.local/bin/study inhibit",
+    "signal": 7,
+    "return-type": "json",
+    "on-click": "~/.local/bin/study inhibit-toggle"
+  },
+
+  // ── Âm thanh ─────────────────────────────────────────────
+  "pulseaudio": {
+    "format": "{volume}% {icon}",
+    "format-muted": "muted",
+    "format-icons": {
+      "default": ["", "", ""]
+    },
+    "on-click": "pavucontrol"
+  },
+
+  "power-profiles-daemon": {
+    "format": "{icon} {profile}",
+    "format-icons": {
+      "performance": "",
+      "balanced": "",
+      "power-saver": ""
+    }
+  },
+
+  // ── Phần cứng ────────────────────────────────────────────
+  "cpu": {
+    "format": " {usage}%",
+    "states": { "warning": 70, "critical": 90 }
+  },
+  "memory": {
+    "format": " {}%",
+    "states": { "warning": 80, "critical": 95 }
+  },
+  "temperature": {
+    "warning-threshold": 65,
+    "critical-threshold": 80,
+    "format": " {temperatureC}°C"
+  },
+  "backlight": {
+    "format": "{icon} {percent}%",
+    "format-icons": ["", "", ""]
+  },
+  "battery": {
+    "states": { "warning": 25, "critical": 15 },
+    "format": "{icon} {capacity}%",
+    "format-charging": " {capacity}%",
+    "format-plugged": " {capacity}%",
+    "format-icons": ["", "", "", "", ""]
+  },
+
+  "clock": {
+    "format": "{:%a %d %b | %I:%M %p}",
+    "format-alt": "{:%A %d %B %Y}",
+    "tooltip-format": "<tt><small>{calendar}</small></tt>",
+    "locale": "en_US.UTF-8"
+  },
+
+  "tray": {
+    "spacing": 10,
+    "icon-size": 16
+  },
+
+  // ── Giao diện ────────────────────────────────────────────
+  "style": {
+    "*": {
+      "font-family": "JetBrains Mono, Font Awesome 6 Free, monospace",
+      "font-size": "13px",
+      "border": "none",
+      "border-radius": "0"
+    },
+    "window#waybar": { "background": "rgba(0,0,0,0)", "color": "#c0caf5" },
+
+    "#workspaces": {
+      "background": "#24283b", "border": "1px solid #414868", "border-radius": "10px",
+      "margin": "4px 0 4px 4px", "padding": "0 10px"
+    },
+    "#workspaces button": {
+      "padding": "0 7px", "color": "#a9b1d6", "font-size": "15px",
+      "border-bottom": "2px solid transparent",
+      "background-color": "rgba(0,0,0,0)"
+    },
+    "#workspaces button:hover, #workspaces button:active": {
+      "background-color": "rgba(0,0,0,0)", "box-shadow": "none"
+    },
+    "#workspaces button.focused, #workspaces button.active": {
+      "color": "#7aa2f7", "border-bottom": "2px solid #7aa2f7"
+    },
+    "#workspaces button.urgent": { "color": "#f7768e", "border-bottom-color": "#f7768e" },
+    // #737aa2 = Tokyo Night dark5, sát tone #a9b1d6 để bug nháy
+    // màu #3865 gần như vô hình (đã gặp thực tế).
+    "#workspaces button.persistent.empty": { "color": "#737aa2" },
+
+    "#window": {
+      "background": "#364a82", "border": "1px solid #7aa2f7", "border-radius": "10px",
+      "padding": "0 10px", "margin": "4px 0 4px 5px", "color": "#c0caf5", "font-weight": "bold"
+    },
+
+    "#custom-inhibit, #pulseaudio, #backlight, #temperature, #battery, #power-profiles-daemon, #cpu, #memory, #tray, #scratchpad": {
+      "background": "#24283b", "border": "1px solid #414868", "border-radius": "10px",
+      "padding": "0 10px", "margin": "4px 0"
+    },
+    "#mode": {
+      "color": "#7aa2f7", "background": "#24283b", "border": "1px solid #414868",
+      "border-radius": "10px", "padding": "0 10px", "margin": "4px 5px"
+    },
+    "#scratchpad": { "color": "#a9b1d6", "margin": "4px 5px" },
+    "#clock": {
+      "color": "#7aa2f7", "font-weight": "bold", "background": "#24283b",
+      "border": "1px solid #414868", "border-radius": "10px",
+      "padding": "0 10px", "margin": "4px 10px 4px 5px"
+    },
+
+    "#custom-study": {
+      "background": "#24283b", "border": "1px solid #414868", "border-radius": "10px",
+      "padding": "0 10px", "margin": "4px 5px", "font-weight": "bold"
+    },
+    "#custom-study.running": { "color": "#7aa2f7" },
+    "#custom-study.paused":  { "color": "#e0af68" },
+    "#custom-study.idle":    { "color": "#565f89" },
+    "#custom-inhibit.running": { "color": "#7aa2f7" },
+    "#custom-inhibit.manual":  { "color": "#e0af68" },
+    "#custom-inhibit.idle":    { "color": "#565f89" },
+
+    "#battery.warning, #temperature.warning, #cpu.warning, #memory.warning": { "color": "#e0af68" },
+    "#battery.critical": { "color": "#f7768e" },
+    "#battery.charging, #battery.plugged": { "color": "#9ece6a", "font-weight": "bold" },
+    "#pulseaudio.muted": { "color": "#565f89" },
+
+    // Nháy màn hình khi tài nguyên chạm ngưỡng nghiêm trọng.
+    "@keyframes blink": {
+      "0%":   { "opacity": 1 },
+      "50%":  { "opacity": 0.2 },
+      "100%": { "opacity": 1 }
+    },
+    "#temperature.critical, #cpu.critical, #memory.critical": {
+      "color": "#f7768e", "animation": "blink 1s linear infinite"
+    }
+  }
+}

@@ -1,0 +1,34 @@
+#!/usr/bin/env bash
+# Menu nguồn. Super+Shift+P.
+set -u
+
+# ⛔ CỐ Ý KHÔNG có mục Hibernate: máy này không cấu hình swap riêng để
+#    hibernate (xem README — chỉ có zram trong RAM, mất sạch khi tắt).
+#    Mục đó chỉ hiện hữu ích sau khi bạn tự thêm swapfile + initramfs hook.
+MENU="⏻ Tắt máy
+↻ Khởi động lại
+⏾ Ngủ
+🔒 Khoá màn hình
+⚡ Power profile
+↺ Nạp lại session
+⏏ Thoát Sway"
+
+choice="$(printf '%s\n' "$MENU" | rofi -dmenu -i -p "Power" \
+  -mesg "Chọn hành động rồi Enter")"
+
+case "$choice" in
+  "⏻ Tắt máy")
+    notify-send -a power -i "system-shutdown" -t 2000 "Power" "Đang tắt máy…"
+    exec systemctl poweroff ;;
+  "↻ Khởi động lại")
+    notify-send -a power -i "system-reboot" -t 2000 "Power" "Đang khởi động lại…"
+    exec systemctl reboot ;;
+  "⏾ Ngủ")
+    notify-send -a power -i "system-suspend" -t 2000 "Power" "Đang ngủ…"
+    exec systemctl suspend ;;
+  "🔒 Khoá màn hình")      exec ~/.local/bin/lock-screen ;;
+  "⚡ Power profile")      exec ~/.local/bin/power-profile-menu ;;
+  "↺ Nạp lại session")    exec ~/.local/bin/refresh-session ;;
+  "⏏ Thoát Sway")
+    exec swaynag -t warning -m 'Thoát Sway?' -B 'Thoát' 'swaymsg exit' ;;
+esac

@@ -1,0 +1,111 @@
+# ══════════════════════════════════════════════════════════════
+#  arch-config — dotfiles cho Arch Linux + Sway
+#
+#  ★ ĐÂY LÀ DANH SÁCH CÀI ĐẮT DUY NHẤT. Một danh sách, không chia
+#    nhẹ/nặng: đủ để máy Sway chạy và làm việc hằng ngày, không thừa.
+#    Dotfiles chỉ đúng khi cài đủ — tách "nhóm tuỳ chọn" sẽ tạo ra
+#    trạng thái "máy cài thiếu", đúng thứ ta muốn tránh.
+#
+#  Tất cả gói nằm trong kho `core`/`extra` — KHÔNG AUR, KHÔNG Nix.
+#  Dòng bắt đầu bằng `#` hoặc khoảng trắng đều bị pacman bỏ qua.
+#
+#  ⛔ Cố ý KHÔNG có, cài riêng khi thật sự cần (xem packages/AUR.md):
+#     libreoffice, qemu/vm, distrobox, podman, openjdk,
+#     gcc/make/cmake/gdb, vscode, chrome, obsidian, sioyek, goldendict
+# ══════════════════════════════════════════════════════════════
+
+# ── Cơ bản ─────────────────────────────────────────────────
+git                    # quản lý chính repo này
+curl                   # quick-lang, tải AppImage
+wget
+unzip
+zip
+htop
+file
+7zip                   # nén/giải nén (thay p7zip)
+stow                   # ★ cơ chế cài dotfiles
+base                   # nền, tương lai cần cho script
+
+# ── Sway + thanh trạng thái + terminal ──────────────────────
+sway
+swaylock
+swayidle
+waybar
+foot                    # terminal, hỗ trợ SIXEL cho yazi
+mako                    # thông báo
+rofi                    # launcher / dmenu
+wlsunset                # tự chỉnh nhiệt màu màn hình theo giờ
+grim                    # chụp màn hình
+slurp                   # vùng chọn
+wl-clipboard
+
+# ── Màn hình đăng nhập ─────────────────────────────────────
+greetd
+greetd-tuigreet
+
+# ── Portal (chụp màn, chia sẻ) ─────────────────────────────
+xdg-desktop-portal
+xdg-desktop-portal-wlr
+xdg-desktop-portal-gtk
+
+# ── Âm thanh / Bluetooth / pin ─────────────────────────────
+pipewire
+wireplumber
+power-profiles-daemon
+bluez
+blueman
+pavucontrol
+networkmanagerapplet
+libnotify
+libappindicator         # tray icon cho blueman / nm-applet
+
+# ── Dịch vụ nền & quản lý tài nguyên ──────────────────────
+polkit                  # xác thực khi đổi profile, bật/tắt mạng
+rtkit
+dconf
+thunar
+tumbler                 # thumbnail cho Thunar
+gvfs                    # thùng rác GIO (yazi dùng chung)
+
+# ── Bộ gõ tiếng Việt ──────────────────────────────────────
+fcitx5
+fcitx5-bamboo
+fcitx5-gtk
+
+# ── Font & icon ───────────────────────────────────────────
+ttf-jetbrains-mono-nerd
+ttf-nerd-fonts-symbols-mono
+ttf-font-awesome
+noto-fonts
+noto-fonts-emoji
+papirus-icon-theme
+
+# ── Ứng dụng ──────────────────────────────────────────────
+yazi                    # file manager trong terminal
+imv                     # xem ảnh
+mpv                     # xem video / nghe nhạc
+foliate                 # đọc sách điện tử
+ripgrep
+fd
+fzf
+zoxide
+jq
+translate-shell
+
+# ── Dịch vụ hệ thống (tương đương modules/nixos/*) ─────────
+brightnessctl
+earlyoom                # giết tiến trình trước khi hết RAM
+zram-generator          # swap nén trong RAM
+keyd                    # CapsLock = Ctrl/Esc, hjkl = phím mũi tên
+fwupd
+hyphen-en               # ngắt dòng cho WebKitGTK (foliate)
+sound-theme-freedesktop # âm báo hết giờ Focus
+starship                # prompt
+
+# ── Editor ─────────────────────────────────────────────────
+# nvim là editor của 3 chỗ khác trong dotfiles nên giữ lại:
+#   · ~/.gitconfig                              → core.editor (dùng cho `git commit`)
+#   · config/yazi/yazi.toml                     → opener <Enter> trên file text
+#   · ~/.local/share/applications/nvim.desktop  → mở file text trong foot
+# Bỏ gói này thì phải sửa cả 3 chỗ trên, nếu không chúng sẽ hỏng.
+neovim

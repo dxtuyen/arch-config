@@ -1,0 +1,40 @@
+# Mako — daemon thông báo. Tokyo Night.
+#
+# Ứng dụng gọi notify-send với `-a <app>` sẽ khớp `app-name=<app>`
+# bên dưới → mỗi loại thông báo một timeout/màu viền riêng.
+
+icon-path=/usr/share/icons/Papirus-Dark
+icons=1
+max-icon-size=33
+icon-location=left
+
+# Popup rộng 350px, cao tối đa 600px để thông báo dài không bị cắt.
+margin=35,20,20,20
+width=350
+height=600
+default-timeout=5000
+
+background-color=#1a1b26
+text-color=#c0caf5
+border-color=#7aa2f7
+border-radius=8
+
+# ── Dịch văn bản ──────────────────────────────────────────
+# Kết quả dài (cả đoạn văn) → giữ 2 phút, bấm trái để tắt sớm.
+app-name=quick-lang.default-timeout=120000
+app-name=quick-lang.border-color=#bb9af7
+app-name=quick-lang.on-button-left=dismiss
+
+# ── Thông báo tức thời (đọc lướt qua rồi biến mất) ─────────
+app-name=volume.default-timeout=2000
+app-name=brightness.default-timeout=2000
+app-name=wlsunset.default-timeout=2000
+app-name=power-profiles.default-timeout=2000
+app-name=toggle-touchpad.default-timeout=2000
+app-name=screenshot.default-timeout=2000
+app-name=power.default-timeout=2000
+app-name=quick-net-reload.default-timeout=3000
+
+# ── Focus: viền theo màu đồng hồ Waybar ────────────────────
+app-name=focus.border-color=#7aa2f7
+app-name=focus.default-timeout=5000

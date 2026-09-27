@@ -1,0 +1,33 @@
+# swayidle — khoá màn → tắt màn → ngủ.
+# Chạy qua systemd nên tự hồi sinh khi crash và dừng theo phiên Sway.
+#
+# Nhịp: khóa 300s → tắt màn 310s → ngủ 900s (chỉ khi dùng pin, xem
+# idle-suspend). Trước khi ngủ luôn khoá màn cho chắc.
+#
+# ⭐ `before-sleep` / `after-resume` còn gọi `study sleep-pause` /
+#    `sleep-resume`: timer Focus dùng wall-clock nên phải tạm dừng khi
+#    máy ngủ, nếu không thì đi hết giờ trong lúc ngủ.
+
+[Unit]
+Description=Idle manager for Wayland (lock → screen off → suspend)
+Documentation=man:swayidle(1)
+PartOf=sway-session.target
+After=sway-session.target
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/swayidle \
+  timeout 300 '%h/.local/bin/lock-screen' \
+  timeout 310 'swaymsg "output * power off"' \
+  resume 'swaymsg "output * power on"' \
+  timeout 900 '%h/.local/bin/idle-suspend' \
+  before-sleep '%h/.local/bin/lock-screen; %h/.local/bin/study sleep-pause' \
+  after-resume '%h/.local/bin/study sleep-resume; swaymsg "output * power on"' \
+  lock '%h/.local/bin/lock-screen' \
+  unlock 'swaymsg "output * power on"'
+Restart=on-failure
+RestartSec=3
+
+[Install]
+WantedBy=sway-session.target

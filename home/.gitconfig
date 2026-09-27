@@ -1,0 +1,65 @@
+# ══════════════════════════════════════════════════════════════
+#  Git — cho MỌI repo của user này (không cần set ở từng repo).
+#
+#  user.name / user.email: install.sh sẽ hỏi/set nếu chưa có.
+#  Không ghi thẳng vào đây vì repo này có thể public.
+# ══════════════════════════════════════════════════════════════
+
+[user]
+	# name  = dxtuyen
+	# email = tuandoxuan05@gmail.com
+
+[init]
+	defaultBranch = main
+
+[pull]
+	rebase = true          # lịch sử phẳng, không tạo merge commit rác
+
+[push]
+	default = current       # `git push` đẩy đúng nhánh đang ở
+	autoSetupRemote = true
+	followTags = true
+
+[core]
+	pager = cat             # không mở less khi diff/log
+	editor = nvim
+	autocrlf = input
+	excludesfile = ~/.config/git/ignore
+
+[fetch]
+	prune = true            # `git fetch` xoá ref cũ đã xoá trên remote
+
+[rebase]
+	autosquash = true
+	autoStash = true       # không mất thay đổi chưa commit khi rebase
+
+[merge]
+	conflictstyle = zdiff3  # 3 khối: base | ours | theirs — dễ đọc hơn diff3
+
+[diff]
+	colorMoved = zebra      # highlight dòng đã di chuyển
+	algorithm = histogram
+
+[color]
+	ui = auto
+
+# Hiện thay đổi trong cây thư mục ngay cả khi file untracked.
+status:
+	showUntrackedFiles = all
+
+# `git lg` — lịch sử dạng đồ thị, gọn hơn `git log --graph`.
+[alias]
+	lg = log --graph --abbrev-commit --date=relative \
+	      --format=format:'%C(bold blue)%h%C(reset) %C(bold green)(%ar)%C(reset) %C(white)%s%C(reset) %C(dim white)— %an%C(reset)'
+	                       --branches --tags
+	st = status -sb
+	co = checkout
+	sw = switch
+	unstage = reset HEAD --
+	amend = commit --amend --no-edit
+	unstash = stash pop
+	wip = !git add -A && git commit -m 'wip' --no-verify
+	# Xoá nhánh đã merge xong
+	gone = "!git fetch --prune && git branch --merged | grep -vE '^(\\*|main|master|develop)' | xargs -n 1 git branch -d"
+	# Nhánh mới từ main cập nhật
+	nb = "!f() { git switch -c \"$1\" main && git pull -q; }; f"

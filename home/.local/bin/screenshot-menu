@@ -1,0 +1,20 @@
+#!/usr/bin/env bash
+# Menu chụp màn hình — gắn Super+Print.
+# Phím cứng (Print, Alt+Print, Shift+Print, Ctrl+Print) gọi thẳng
+# screenshot không qua menu, nên bấm được là chụp luôn.
+set -u
+
+MENU="📷 Vùng chọn → Clipboard (Print)
+🖥️ Toàn màn hình → Clipboard (Alt+Print)
+📁 Vùng chọn → Lưu file (Shift+Print)
+💾 Toàn màn hình → Lưu file (Ctrl+Print)"
+
+choice="$(printf '%s\n' "$MENU" | rofi -dmenu -i -p "Screenshot" \
+  -mesg "Chọn hành động rồi Enter")"
+
+case "$choice" in
+  "📷 Vùng chọn → Clipboard (Print)")            exec ~/.local/bin/screenshot selection-clipboard ;;
+  "🖥️ Toàn màn hình → Clipboard (Alt+Print)")    exec ~/.local/bin/screenshot fullscreen-clipboard ;;
+  "📁 Vùng chọn → Lưu file (Shift+Print)")      exec ~/.local/bin/screenshot selection-save ;;
+  "💾 Toàn màn hình → Lưu file (Ctrl+Print)")    exec ~/.local/bin/screenshot fullscreen-save ;;
+esac

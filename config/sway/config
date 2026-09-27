@@ -1,0 +1,243 @@
+# ══════════════════════════════════════════════════════════════
+#  Sway — cấu hình chính
+#  Nạp lại:  Super+Shift+C   (hoặc: ~/.local/bin/refresh-session)
+# ══════════════════════════════════════════════════════════════
+
+### ── Biến ──────────────────────────────────────────────────
+set $mod      Mod4
+set $left     h
+set $down     j
+set $up       k
+set $right    l
+set $term     foot
+set $menu     rofi -show drun
+
+### ── Nhập biến môi trường vào systemd ──────────────────────
+# Mọi app mở bằng keybinding kế thừa env của Sway, nhưng app mở qua
+# systemd user service thì không. Import để cả hai đường nhất quán.
+exec dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=sway SWAYSOCK XMODIFIERS QT_IM_MODULE
+exec systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP SWAYSOCK XMODIFIERS QT_IM_MODULE
+
+# Kéo theo mọi service user (swayidle, awww, fcitx5, waybar…).
+exec systemctl --user start sway-session.target
+
+### ── Input ─────────────────────────────────────────────────
+input type:touchpad {
+    pointer_accel 0.6
+    accel_profile adaptive
+    natural_scroll enabled
+    scroll_method two_finger
+    tap enabled
+    drag enabled
+    dwt enabled
+}
+seat * hide_cursor 7000
+seat * xcursor_theme Bibata-Modern-Classic 24
+
+### ── Giao diện: Tokyo Night ────────────────────────────────
+gaps inner 7
+gaps outer 4
+gaps top 0
+default_border pixel 2
+default_floating_border pixel 2
+floating_modifier $mod normal
+focus_follows_mouse yes
+smart_borders off
+
+client.focused           #7aa2f7 #364a82 #c0caf5 #bb9af7 #7aa2f7
+client.focused_inactive  #a9b1d6 #1a1b26 #c0caf5 #a9b1d6 #a9b1d6
+client.unfocused         #414868 #1a1b26 #565f89 #414868 #414868
+client.urgent            #ff9e64 #1a1b26 #ff9e64 #565f89 #565f89
+client.placeholder       #1a1b26 #1a1b26 #c0caf5 #a9b1d6 #a9b1d6
+client.background        #1a1b26
+
+### ── Cửa sổ đặc biệt ───────────────────────────────────────
+# Thunar, pavucontrol, blueman: bảng điều khiển nên float.
+for_window [app_id="pavucontrol"]     floating enable, resize set width 30 ppt height 40 ppt
+for_window [app_id="blueman-manager"] floating enable, resize set width 40 ppt height 40 ppt
+for_window [title="htop"]             floating enable, resize set width 50 ppt height 70 ppt
+for_window [class="(?i)^thunar$"]     floating enable, resize set width 40 ppt height 65 ppt
+for_window [app_id="(?i)^thunar$"]    floating enable, resize set width 40 ppt height 65 ppt
+
+# $mod+y mở yazi trong foot với title riêng. Yazi không phải app riêng nên
+# app_id vẫn là "foot" — buộc phải match theo TITLE để không ảnh hưởng
+# terminal thường ($mod+Return).
+for_window [title="(?i)^yazi-popup"] floating enable, resize set 1000 px 700 px
+
+# Yazi ($mod+y) mở ở đúng workspace đang focus, không nhảy workspace.
+for_window [title="(?i)^yazi-popup"] move container to workspace current
+
+# Foliate: app_id đúng theo .desktop. `class` để phòng XWayland.
+for_window [app_id="(?i)^com\.github\.johnfactotum\.foliate$"] move container to workspace current
+for_window [class="(?i)^foliate$"]                                    move container to workspace current
+
+# Dialog / popup của mọi app.
+for_window [window_role="pop-up"]        floating enable
+for_window [window_role="bubble"]         floating enable
+for_window [window_role="task_dialog"]    floating enable
+for_window [window_role="Preferences"]    floating enable
+for_window [window_type="dialog"]         floating enable
+for_window [window_type="menu"]           floating enable
+for_window [window_role="About"]          floating enable
+for_window [title="Save File"]            floating enable
+
+# Chrome Picture-in-Picture.
+for_window [title="Picture in picture"] floating enable, sticky enable, resize set width 350 px height 197 px, move position 1530 px 800 px
+
+# VS Code luôn ở workspace 3.code.
+
+### ── Mở app ────────────────────────────────────────────────
+bindsym $mod+Return exec $term
+bindsym $mod+Shift+q kill
+bindsym $mod+d       exec $menu
+bindsym $mod+Tab    exec rofi -show window
+bindsym $mod+e      exec $term
+bindsym $mod+t      exec $term -e nvim
+
+### ── Ảnh nền ───────────────────────────────────────────────
+# Alt+w random ảnh khác, Alt+Shift+w chọn ảnh có thumbnail.
+# (Super+w để dành cho layout tabbed.)
+bindsym Mod1+w       exec ~/.local/bin/wallpaper-set
+bindsym Mod1+Shift+w exec ~/.local/bin/wallpaper-menu
+
+### ── Tiện ích ──────────────────────────────────────────────
+# $mod+y: yazi dạng POPUP cửa sổ nhỏ. Gõ `yazi` trong terminal thì ra
+# cửa sổ thường, không popup (xem trước ảnh/PDF đẹp hơn).
+bindsym $mod+y        exec ~/.local/bin/yazi-open
+bindsym $mod+Shift+c  exec ~/.local/bin/refresh-session
+bindsym $mod+Shift+e  exec swaynag -t warning -m 'Thoát Sway?' -B 'Thoát' 'swaymsg exit'
+bindsym $mod+Shift+n  exec ~/.local/bin/toggle-wlsunset
+bindsym $mod+Shift+l  exec ~/.local/bin/lock-screen
+
+bindsym $mod+p        exec ~/.local/bin/pomodoro-menu      # đồng hồ Focus
+bindsym $mod+Shift+p  exec ~/.local/bin/power-menu
+
+# Dịch văn bản đang bôi:
+#   t            → English sạch (smart: VI/EN/trộn tự nhận dạng; EN đã
+#                  đúng → nguyên văn, có lỗi → sửa)
+#   Shift+t      → tiếng Việt tự nhiên
+#   Ctrl+Shift+t → ép sửa English (không auto-detect)
+# Tag [xxx] đầu văn bản bôi = ngữ cảnh: [phi] [sci] [lit] [cas] [lãy].
+bindsym $mod+t             exec ~/.local/bin/quick-lang vi-en
+bindsym $mod+Shift+t       exec ~/.local/bin/quick-lang en-vi
+bindsym $mod+Ctrl+Shift+t  exec ~/.local/bin/quick-lang fix
+bindsym $mod+Shift+r       exec ~/.local/bin/quick-net-reload
+
+bindsym $mod+Mod1+t exec ~/.local/bin/toggle-touchpad
+
+# ── Ảnh chụp màn hình ──────────────────────────────────────
+bindsym $mod+Print            exec ~/.local/bin/screenshot-menu
+bindsym --no-repeat Print            exec ~/.local/bin/screenshot selection-clipboard
+bindsym --no-repeat Mod1+Print       exec ~/.local/bin/screenshot fullscreen-clipboard
+bindsym --no-repeat Shift+Print      exec ~/.local/bin/screenshot selection-save
+bindsym --no-repeat Ctrl+Print       exec ~/.local/bin/screenshot fullscreen-save
+
+### ── Phím media & đèn nền ──────────────────────────────────
+# Gộp cả phím cứng lẫn ứng dụng điều khiển media vào media-notify để
+# thông báo luôn có icon + thanh tiến trình thay vì OSD mặc định.
+bindsym XF86AudioRaiseVolume  exec ~/.local/bin/media-notify volume-up
+
+### ── Di chuyển focus ────────────────────────────────────────
+bindsym $mod+$left  focus left
+bindsym $mod+$down  focus down
+bindsym $mod+$up    focus up
+bindsym $mod+$right focus right
+bindsym $mod+Left   focus left
+bindsym $mod+Down   focus down
+bindsym $mod+Up     focus up
+bindsym $mod+Right  focus right
+
+### ── Di chuyển cửa sổ ──────────────────────────────────────
+bindsym $mod+Shift+$left  move left
+bindsym $mod+Shift+$down  move down
+bindsym $mod+Shift+$up    move up
+bindsym $mod+Shift+$right move right
+bindsym $mod+Shift+Left   move left
+bindsym $mod+Shift+Down   move down
+bindsym $mod+Shift+Up     move up
+bindsym $mod+Shift+Right  move right
+
+### ── Workspace ──────────────────────────────────────────────
+# Thứ tự = số phím. Thêm tên mới: sửa khối này + khối "workspace số" bên dưới.
+bindsym $mod+1        workspace number 1.main
+bindsym $mod+2        workspace number 2.AI
+bindsym $mod+3        workspace number 3.code
+bindsym $mod+4        workspace number 4.others
+bindsym $mod+Shift+1  move container to workspace number 1.main
+bindsym $mod+Shift+2  move container to workspace number 2.AI
+bindsym $mod+Shift+3  move container to workspace number 3.code
+bindsym $mod+Shift+4  move container to workspace number 4.others
+
+# Các con số chưa đặt tên (5–10) vẫn dùng được như workspace số thuần.
+bindsym $mod+5        workspace number 5
+bindsym $mod+6        workspace number 6
+bindsym $mod+7        workspace number 7
+bindsym $mod+8        workspace number 8
+bindsym $mod+9        workspace number 9
+bindsym $mod+0        workspace number 10
+bindsym $mod+Shift+5  move container to workspace number 5
+bindsym $mod+Shift+6  move container to workspace number 6
+bindsym $mod+Shift+7  move container to workspace number 7
+bindsym $mod+Shift+8  move container to workspace number 8
+bindsym $mod+Shift+9  move container to workspace number 9
+bindsym $mod+Shift+0  move container to workspace number 10
+
+bindsym $mod+u  workspace prev
+bindsym $mod+i  workspace next
+
+### ── Layout & trạng thái cửa sổ ────────────────────────────
+bindsym $mod+b            splith
+bindsym $mod+v            splitv
+bindsym $mod+s            layout stacking
+bindsym $mod+w            layout tabbed
+bindsym $mod+e            layout toggle split
+bindsym $mod+f            fullscreen
+bindsym $mod+Shift+space  floating toggle
+bindsym $mod+space        focus mode_toggle
+bindsym $mod+a            focus parent
+bindsym $mod+Shift+a      focus child
+bindsym $mod+Shift+minus  move scratchpad
+bindsym $mod+minus        scratchpad show
+
+mode "resize" {
+    bindsym $left  resize shrink width 20px
+    bindsym $down  resize grow height 20px
+    bindsym $up    resize shrink height 20px
+    bindsym $right resize grow width 20px
+    bindsym Escape mode "default"
+    bindsym Return mode "default"
+}
+bindsym $mod+r mode "resize"
+
+### ── Ảnh nền: CỐ Ý KHÔNG CẤU HÌNH Ở ĐÂY ───────────────────
+# Ảnh nền do wallpaper-init.service lo. Unit đó được kéo lên tự động bởi
+# sway-session.target, nên Sway không cần biết gì về awww — và thứ tự
+# khởi động do systemd bảo đảm (After=), thay vì để script tự đoán bằng
+# vòng lặp poll + sleep.
+#
+# ⭐ MUỐN BỎ awww? Xoá được cả daemon + 2 script + thư viện + 2 unit.
+#    Sway tự đổi nền được, chỉ khác là CẮT CỨNG không có hiệu ứng:
+#
+#      output * bg ~/Pictures/wallpapers/<tên>.jpg fill
+#
+#    Rồi xoá: awww khỏi packages/official.txt · wallpaper-set ·
+#    wallpaper-menu · config/lib/wallpaper.sh · awww-daemon.service ·
+#    wallpaper-init.service · và 2 phím Alt+w / Alt+Shift+w ở trên.
+
+### ── Applet & daemon ────────────────────────────────────────
+exec nm-applet --indicator
+exec blueman-applet
+exec /usr/lib/polkit-gnome-1/polkit-gnome-authentication-agent-1
+exec wlsunset -t 4000 -T 6500 -l 21.0 -L 105.8
+
+bindsym XF86AudioLowerVolume  exec ~/.local/bin/media-notify volume-down
+bindsym XF86AudioMute         exec ~/.local/bin/media-notify volume-mute
+bindsym XF86AudioMicMute      exec ~/.local/bin/media-notify mic-mute
+bindsym XF86MonBrightnessUp   exec ~/.local/bin/media-notify brightness-up
+bindsym XF86MonBrightnessDown exec ~/.local/bin/media-notify brightness-down
+
+for_window [class="(?i)^code$"] move container to workspace number 3.code, workspace number 3.code
+for_window [app_id="(?i)^code$"] move container to workspace number 3.code, workspace number 3.code
+
+# Xem video toàn màn hình thì không cho máy tự khóa màn.
+for_window [fullscreen_mode] inhibit_idle fullscreen

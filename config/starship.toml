@@ -1,0 +1,44 @@
+# Starship — prompt. Tokyo Night.
+# Nhập biến môi trường trong ~/.bashrc (starship init bash).
+
+add_newline = true
+format = "$directory$git_branch$git_status$cmd_duration\n$character"
+
+[directory]
+style = "bold #7aa2f7"
+read_only_style = "#f7768e"
+truncation_length = 3
+truncate_to_repo = true
+home_symbol = "~"
+format = "[$path]($style)[$read_only]($read_only_style) "
+
+[git_branch]
+symbol = ""
+style = "#bb9af7"
+format = "[$symbol$branch]($style) "
+
+[git_status]
+format = "([$all_status$ahead_behind]($style) )"
+style = "#565f89"
+modified = "[✱](#e0af68)"
+deleted  = "[✖](#f7768e)"
+untracked = "[?](#7aa2f7)"
+renamed  = "[»](#bb9af7)"
+conflicted = "[=](#f7768e)"
+
+# Ẩn trạng thái ít dùng cho gọn prompt.
+stashed = ""
+ahead = ""
+behind = ""
+diverged = ""
+typechanged = ""
+
+[cmd_duration]
+min_time = 2000
+style = "#e0af68"
+format = "[ $duration]($style) "
+
+[character]
+success_symbol = "[❯](bold #9ece6a)"
+error_symbol   = "[❯](bold #f7768e)"
+vicmd_symbol   = "[❮](bold #73daca)"

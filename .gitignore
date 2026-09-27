@@ -1,0 +1,24 @@
+# ── KHÔNG commit ───────────────────────────────────────────
+# Kết quả symlink của stow (đã có trong .gitignore tương lai)
+*.stow-backup
+
+# Secret
+config/quick-lang/
+*.key
+*.pem
+id_*
+
+# Dữ liệu ngoài repo
+Pictures/
+Books/
+Downloads/
+Apps/
+VMs/
+.cache/
+
+# Editor / hệ điều hành
+*.swp
+*~
+.DS_Store
+result
+result-*

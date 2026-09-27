@@ -1,0 +1,23 @@
+# Bộ gõ tiếng Việt: Fcitx5 + engine Bamboo (fcitx5-bamboo, dùng
+# bamboo-core giống ibus-bamboo).
+#
+# ⚠️ Tên trong profile phải là "bamboo" CHỮ THỮA. Fcitx5 đặt uniqueName
+#   theo tên file inputmethod/bamboo.conf của addon và tra profile phân
+#   biệt hoa/thường — viết "Bamboo" sẽ bị loại: "Group Item ... is not
+#   valid" và bộ gõ không hoạt động.
+
+[Groups/0]
+Name=Default
+Default Layout=us
+DefaultIM=bamboo
+
+[Groups/0/Items/0]
+Name=keyboard-us
+Layout=
+
+[Groups/0/Items/1]
+Name=bamboo
+Layout=
+
+[GroupOrder]
+0=Default

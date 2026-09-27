@@ -1,0 +1,12 @@
+# Tham số kernel cho systemd-boot.
+# systemd-boot đọc file này và gộp vào mọi entry boot → không cần sửa
+# /boot/loader/entries/*.conf sau này, và không cần `grub-mkconfig`.
+#
+# ⚠️ MỖI DÒNG phải là MỘT THAM SỐ. Thêm tham số mới = thêm dòng mới,
+#    tuyệt đối không gõ nhiều tham số trên một dòng.
+#
+# Sau khi sửa:  sudo mkinitcpio -P && sudo kernel-install add-all "$(uname -r)"
+
+# deep sleep (suspend-to-RAM) tiết kiệm pin hơn s2idle rất nhiều trên
+# laptop — chỉ dùng được nếu máy đã vào suspend-to-RAM thật.
+mem_sleep_default=deep

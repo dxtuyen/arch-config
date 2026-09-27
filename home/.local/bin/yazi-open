@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+# Mở yazi trong cửa sổ foot NHỎ kiểu popup — gắn Super+Y.
+# Dùng để chọn nhanh: xem 1 file, chỉ đường dẫn, thêm/xoá ảnh.
+#
+# ⚠️ Vì sao cần --title=yazi-popup?
+#    Yazi KHÔNG phải app riêng — nó chạy BÊN TRONG foot nên Sway chỉ
+#    thấy app_id="foot". Muốn chỉ cửa sổ NÀY floating mà không ảnh
+#    hưởng terminal thường, phải đặt title riêng rồi match theo title
+#    (rule `title="^yazi-popup"` trong ~/.config/sway/config).
+#    Cùng pattern cho `foot --title=nvim`.
+#
+# ⚠️ CHỈ Super+Y gọi script này. Gõ `yazi` trong terminal thì ra cửa
+#    sổ thường, KHÔNG popup — xem trước ảnh/PDF đẹp hơn nhiều.
+#
+# Cửa sổ nhỏ BÓP khung preview của yazi: ảnh/PDF chỉ xem thoáng qua.
+# Muốn duyệt kỹ thì mở `yazi` trong terminal cho cửa sổ lớn.
+set -u
+
+# foot dùng `WIDTHxHEIGHT` (đơn vị chữ x), KHÔNG phải "1000,700".
+# Muốn to hơn thì sửa 2 số này, hoặc dùng `ppt` (phần trăm) để co theo
+# kích thước màn hình.
+exec foot --title=yazi-popup --window-size-pixels=1000x700 -e yazi "$@"

@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Reload mạng nhanh: tắt/bật NetworkManager (renew DHCP + DNS).
+# Dùng khi mạng "đứng hình" mà `ping` không ra. Super+Shift+R.
+# Không cần sudo — polkit cho user local (nhóm wheel).
+set -u
+
+notify() {
+  notify-send -a quick-net-reload -i network-wireless -t 3000 "Reload mạng" "$@"
+}
+
+# Xoá cache DNS (best-effort).
+resolvectl flush-caches >/dev/null 2>&1 || true
+
+if ! nmcli networking off; then
+  notify -u critical "Không tắt được mạng — kiểm tra quyền user/polkit."
+  exit 1
+fi
+if ! nmcli networking on; then
+  notify -u critical "Không bật lại được mạng — kiểm tra quyền user/polkit."
+  exit 1
+fi
+
+# Chờ kết nối lại (tối đa ~10s).
+state=""
+for _ in $(seq 20); do
+  state="$(nmcli -t -f STATE,CONNECTIVITY general status 2>/dev/null | cut -d: -f2)"
+  [ "$state" = "full" ] && break
+  sleep 0.5
+done
+
+if [ "$state" = "full" ]; then
+  notify "Đã bật lại mạng — kết nối full."
+else
+  notify -u critical "Đã bật lại mạng nhưng chưa kết nối được — kiểm tra wifi."
+  exit 1
+fi

@@ -1,0 +1,61 @@
+#!/usr/bin/env bash
+# Đặt ảnh nền qua awww (có chuyển cảnh fade).
+#
+#   wallpaper-set            random 1 ảnh, luôn KHÁC ảnh đang hiển thị
+#   wallpaper-set <ảnh>      đặt đúng ảnh này
+#   wallpaper-set --restore  giữ ảnh phiên trước; chưa có thì random
+#                            (dùng lúc đăng nhập — gọi bởi wallpaper-init.service)
+#
+# Ảnh nằm ở ~/Pictures/wallpapers — NGOÀI repo, cp/rm thoải mái, không
+# cần cài lại dotfiles. Mọi ảnh .png/.jpg/.jpeg đều được random như
+# nhau: không chia pool, không logic theo giờ.
+set -u
+# shellcheck source=../config/lib/wallpaper.sh
+. "${XDG_CONFIG_HOME:-$HOME/.config}/lib/wallpaper.sh"
+
+notify() { notify-send -a wallpaper "wallpaper-set" "$1" 2>/dev/null || true; }
+
+wallpaper_ensure_daemon || { notify "awww-daemon không phản hồi"; exit 1; }
+
+case "${1:-}" in
+  --restore)
+    # awww tự khôi phục ảnh phiên trước từ ~/.cache/awww. Chỉ cần biết
+    # đã có ảnh chưa. ⚠️ Socket mở TRƯỚC khi cache được áp, nên phải
+    #    chờ một chút — không chờ thì quyết định quá sớm và đặt ảnh
+    #    khác, mất ảnh người dùng vừa xem. Hết giờ chờ thì rơi xuống
+    #    nhánh random: --restore biến thành bình thường, không bao giờ hỏng.
+    for _ in $(seq 20); do
+      [ -n "$(wallpaper_current)" ] && exit 0
+      sleep 0.1
+    done
+    ;;
+  "")
+    ;;   # rơi xuống nhánh random
+  *)
+    if [ ! -f "$1" ]; then notify "Không có file: $1"; exit 1; fi
+    exec awww img "$(readlink -f -- "$1")" -t fade \
+      --transition-duration "$FADE_DURATION"
+    ;;
+esac
+
+mapfile -t imgs < <(wallpaper_list)
+
+if [ "${#imgs[@]}" -eq 0 ]; then
+  # Chưa có ảnh nào (máy mới / vừa xoá hết) → màu nền theme. Thoát 0
+  # để lúc đăng nhập coi như đã đặt nền, không spam lỗi.
+  awww img "$FALLBACK_COLOR" -t fade --transition-duration "$FADE_DURATION"
+  notify "Chưa có ảnh nền — tạm dùng màu nền. Thêm ảnh: copy vào $WALL_DIR"
+  exit 0
+fi
+
+# Loại ảnh đang hiển thị khỏi danh sách → luôn đổi sang ảnh khác.
+cur="$(wallpaper_current)"
+cands=()
+for f in "${imgs[@]}"; do
+  [ "$f" = "$cur" ] || cands+=("$f")
+done
+# Chỉ có đúng 1 ảnh thì không có lựa chọn thay thế — dùng luôn ảnh đó.
+[ "${#cands[@]}" -gt 0 ] || cands=("${imgs[@]}")
+
+awww img "${cands[RANDOM % ${#cands[@]}]}" -t fade \
+  --transition-duration "$FADE_DURATION"

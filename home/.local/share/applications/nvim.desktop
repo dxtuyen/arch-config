@@ -1,0 +1,14 @@
+[Desktop Entry]
+Type=Application
+Name=Neovim
+GenericName=Text Editor
+Comment=Mở file text trong terminal Foot
+Icon=nvim
+Exec=foot --title=nvim nvim %F
+Terminal=false
+StartupNotify=true
+Categories=Utility;TextEditor;Development
+# MimeType phải nằm trong một dòng, phân tách bằng dấu chấm phẩy —
+# xuống dòng là sinh dòng hỏng trong .desktop.
+MimeType=text/plain;text/x-makefile;text/x-c++hdr;text/x-c++src;text/x-chdr;text/x-csrc;text/x-java;text/x-moc;text/x-pascal;text/x-tcl;text/x-tex;application/x-shellscript;text/x-c;text/x-c++;
+StartupWMClass=foot

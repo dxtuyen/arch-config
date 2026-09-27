@@ -1,0 +1,23 @@
+# Fcitx5 — daemon bộ gõ tiếng Việt.
+#
+# ⚠️ KHÔNG cần ép FCITX_ADDON_DIRS / FCITX_DATA_DIRS như trên NixOS:
+#    ở đây addon nằm đúng chỗ FHS (/usr/lib/fcitx5, /usr/share/fcitx5)
+#    nên fcitx5 tự tìm thấy. Ép đường dẫn sẽ chỉ gây hại.
+#
+# WantedBy sway-session.target: khởi động đúng lúc Sway lên, và bị dừng
+# khi Sway thoát.
+
+[Unit]
+Description=Fcitx5 input method daemon
+After=sway-session.target
+PartOf=sway-session.target
+StartLimitIntervalSec=60
+
+[Service]
+Type=simple
+ExecStart=/usr/bin/fcitx5 -d
+Restart=on-failure
+RestartSec=2
+
+[Install]
+WantedBy=sway-session.target

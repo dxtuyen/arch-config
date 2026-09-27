@@ -1,0 +1,16 @@
+# Greetd — màn hình đăng nhập (tuigreet).
+#
+# greetd 0.9+ đọc cả /etc/greetd/config.toml lẫn ~/.config/greetd/config.toml;
+# file trong ~/.config để file này nằm trong repo, không phải /etc.
+#
+# `command` KHÔNG chạy qua shell, nên bọc `sh -c` để nạp biến môi
+# trường (fcitx, Electron native Wayland) trước khi chạy sway. Dấu `~`
+# được sh mở rộng theo home của user `greeter` — nhờ vậy file này không
+# cần ghi cứng tên user.
+
+[terminal]
+vt = 1
+
+[default_session]
+user = "greeter"
+command = "sh -c '. ~/.config/session-env.sh; exec sway'"

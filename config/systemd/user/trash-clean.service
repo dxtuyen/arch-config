@@ -1,0 +1,22 @@
+# Dọn thùng rác GIO — giữ lại mục cũ hơn 30 ngày.
+#
+# ⚠️ KHÔNG dùng `gio trash --empty`: xoá SẠCH toàn bộ, nghĩa là file
+#    lỡ tay xoá tối qua sẽ mất vĩnh viễn lúc 3h sáng. Script chỉ xoá
+#    mục CŨ HƯỚN N ngày nên vẫn cửa sổ khôi phục bằng `g t` trong yazi.
+#
+# Đây là USER timer, KHÔNG phải system timer — `gio`/`dbus` cần
+# XDG_RUNTIME_DIR + DBUS_SESSION_BUS_ADDRESS. System timer thiếu 2 biến
+# đó → lệnh hỏng mà không báo lỗi rõ ràng.
+#
+# Cũng cố ý KHÔNG khai After=graphical-session.target: bạn có thể đang
+# ngoài phiên đồ hoạ lúc 3h sáng, và unit đó có thể không bao giờ
+# tới → timer không bao giờ chạy. Script tự thoát êm nếu không có thùng
+# rác, nên chạy sớm cũng vô hại.
+
+[Unit]
+Description=Dọn thùng rác GIO (giữ 30 ngày gần nhất)
+
+[Service]
+Type=oneshot
+# 30 = số ngày muốn giữ. Đổi ở đây.
+ExecStart=%h/.local/bin/trash-clean 30

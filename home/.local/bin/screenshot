@@ -1,0 +1,37 @@
+#!/usr/bin/env bash
+# Chụp màn hình. Gọi trực tiếp bằng phím hoặc qua screenshot-menu.
+#   screenshot selection-clipboard | fullscreen-clipboard
+#   screenshot selection-save      | fullscreen-save
+# Ảnh lưu vào ~/Pictures/Screenshots/<YYYYmmdd-HHMMSS>.png và copy vào
+# clipboard (dán được luôn mà không phải mở file).
+set -u
+
+mode="${1:?missing mode}"
+
+case "$mode" in
+  selection-clipboard)
+    region="$(slurp)" || exit 1          # kiểm tra exit slurp để hủy không báo sai
+    grim -g "$region" - | wl-copy
+    notify-send -a screenshot -i "camera-photo" -t 2000 "Screenshot" "Vùng đã chọn → clipboard"
+    ;;
+  fullscreen-clipboard)
+    grim - | wl-copy
+    notify-send -a screenshot -i "camera-photo" -t 2000 "Screenshot" "Toàn màn hình → clipboard"
+    ;;
+  selection-save)
+    region="$(slurp)" || exit 1
+    f="$HOME/Pictures/Screenshots/$(date +%Y%m%d-%H%M%S).png"
+    mkdir -p "$(dirname "$f")"
+    grim -g "$region" "$f" && wl-copy < "$f"
+    notify-send -a screenshot -i "camera-photo" -t 2000 "Screenshot" "Vùng đã chọn → đã lưu"
+    ;;
+  fullscreen-save)
+    f="$HOME/Pictures/Screenshots/$(date +%Y%m%d-%H%M%S).png"
+    mkdir -p "$(dirname "$f")"
+    grim "$f" && wl-copy < "$f"
+    notify-send -a screenshot -i "camera-photo" -t 2000 "Screenshot" "Toàn màn hình → đã lưu"
+    ;;
+  *)
+    echo "usage: screenshot {selection|fullscreen}-{clipboard|save}" >&2
+    exit 1 ;;
+esac

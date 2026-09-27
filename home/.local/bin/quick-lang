@@ -1,0 +1,185 @@
+#!/usr/bin/env bash
+# Dịch / sửa văn bản đang bôi (ưu tiên selection, fallback clipboard),
+# kết quả copy ngược lại clipboard.
+#
+#   Super+t            vi-en  English sạch (smart: VI/EN/trộn tự nhận dạng;
+#                              EN đã đúng → nguyên văn, có lỗi → sửa)
+#   Super+Shift+t      en-vi  tiếng Việt tự nhiên, có dấu đầy đủ
+#   Super+Ctrl+Shift+t fix    ép sửa English (không auto-detect)
+#
+# Tag [xxx] ở ĐẦU văn bản bôi = ngữ cảnh:
+#   [phi] triết học   [sci] khoa học   [lit] văn chương   [cas] hội thoại
+#   [lãy] luật vụ     [kinh tế] [y tế] [tt] [kỹ thuật phần mềm]
+# Tag bị cắt trước khi gửi đi.
+#
+# Key Gemini: ~/.config/quick-lang/api.key (install.sh đã tạo, chmod 700)
+#   hoặc biến môi trường GEMINI_API_KEY.
+# Hết quota (429) → tự fallback Google Translate, không cần gõ phím.
+set -u
+
+mode="${1:-vi-en}"
+FALLBACK_GT=0
+
+# -p = print-id để dismiss thông báo cũ; bản dịch mới đè lên bản cũ.
+# ID lưu trong tmpfs ($XDG_RUNTIME_DIR).
+NTF_ID_FILE="${XDG_RUNTIME_DIR:-/tmp}/quick-lang-notify-id"
+ntf() {
+  local old_id
+  old_id="$(cat "$NTF_ID_FILE" 2>/dev/null || true)"
+  if [ -n "$old_id" ]; then
+    makoctl dismiss -n "$old_id" 2>/dev/null || true
+    sleep 0.1
+  fi
+  printf %s "$(notify-send -a quick-lang -p "$@")" > "$NTF_ID_FILE"
+}
+
+# ── Lấy văn bản ────────────────────────────────────────────
+text="$(wl-paste -p 2>/dev/null || true)"
+[ -n "${text//[[:space:]]/}" ] || text="$(wl-paste 2>/dev/null || true)"
+[ -n "${text//[[:space:]]/}" ] || {
+  ntf "Quick Lang" "Không có văn bản nào được chọn hoặc copy."
+  exit 1
+}
+
+# ── Tag ngữ cảnh ───────────────────────────────────────────
+CTX_LABEL=""
+CTX_RULE="Infer the domain and register from the text itself, then write the way an educated native speaker in that domain would naturally write."
+if [[ $text =~ ^\[[[:space:]]*([A-Za-z]+)[[:space:]]*\] ]]; then
+  tag="${BASH_REMATCH[1],,}"
+  text="${text#*\]}"
+  text="${text#"${text%%[![:space:]]*}"}"
+  case "$tag" in
+    phi) CTX_LABEL="phi"; CTX_RULE="Register: philosophical writing. Use precise abstract terminology, preserve hedging (perhaps, seems, may), and phrase it the way a careful philosopher would." ;;
+    sci) CTX_LABEL="sci"; CTX_RULE="Register: academic/scientific writing. Formal and precise, with standard scientific hedging (suggest, indicate) and academic conventions." ;;
+    lit) CTX_LABEL="lit"; CTX_RULE="Register: literary prose. Preserve imagery, voice, rhythm and figurative language; favor evocative, idiomatic phrasing over literal accuracy." ;;
+    cas) CTX_LABEL="cas"; CTX_RULE="Register: casual natural conversation, the way a native speaker chats informally." ;;
+    *)   CTX_LABEL="$tag"; CTX_RULE="Domain: $tag. Write it the way an expert in this field would naturally express the idea." ;;
+  esac
+fi
+
+# ── Prompt theo mode ────────────────────────────────────────
+case "$mode" in
+  vi-en)
+    rule="Convert the text below into polished, natural English. The text may be entirely Vietnamese (with or without diacritics), entirely English, or a mix of both. If it contains any Vietnamese, translate it and render the whole meaning as one coherent English text, integrating any already-English parts naturally. If it is entirely English, proofread it: when it is already correct and natural, output it EXACTLY unchanged; when it has real errors (grammar, word choice, collocation), output only the corrected text. $CTX_RULE Preserve the full meaning and tone of the original. Keep proper nouns and technical terms. Output ONLY the resulting English text, with no explanations or notes."
+    gt_tl="en"
+    ;;
+  en-vi)
+    rule="Convert the text below into natural Vietnamese with correct diacritics. The text may be entirely English, entirely Vietnamese, or a mix of both; render the whole meaning as one coherent Vietnamese text, integrating all parts naturally. $CTX_RULE Preserve the full meaning and tone of the original. Keep proper nouns and technical terms. Output ONLY the resulting Vietnamese text, with no explanations or notes."
+    gt_tl="vi"
+    ;;
+  fix)
+
+# ── Gemini ──────────────────────────────────────────────────
+# Chỉ retry lỗi mạng/5xx. 429 (hết quota) báo ngay, không retry — cứ
+# retry chỉ tốn thêm lượt rồi vẫn 429, và nhanh hơn là fallback sang
+# Google Translate.
+translate_ai() {
+  # vi-en/en-vi → flash-lite (nhanh, quota lớn); fix → flash (chuẩn hơn).
+  case "$mode" in
+    vi-en|en-vi) MODEL="gemini-flash-lite-latest" ;;
+    *)           MODEL="gemini-flash-latest" ;;
+  esac
+
+  API_KEY="${GEMINI_API_KEY:-}"
+  if [ -z "$API_KEY" ] && [ -r "${XDG_CONFIG_HOME:-$HOME/.config}/quick-lang/api.key" ]; then
+    API_KEY="$(cat "${XDG_CONFIG_HOME:-$HOME/.config}/quick-lang/api.key" 2>/dev/null | tr -d '[:space:]')"
+  fi
+  if [ -z "$API_KEY" ]; then
+    ntf -u critical "Quick Lang" "Chưa có API key. Tạo ~/.config/quick-lang/api.key hoặc đặt biến GEMINI_API_KEY."
+    exit 1
+  fi
+
+  local prompt resp_file http_code attempt
+  prompt="$(printf '%s\n\nText:\n%s' "$rule" "$text")"
+  resp_file="${XDG_RUNTIME_DIR:-/tmp}/quick-lang-resp.$$"
+  http_code=""
+
+  for attempt in 1 2 3; do
+    http_code="$(timeout 40 curl -sS \
+      --connect-timeout 5 --max-time 35 \
+      -H "Content-Type: application/json" \
+      -d "$(jq -n --arg p "$prompt" '{contents:[{parts:[{text:$p}]}], generationConfig:{temperature:0.2}}')" \
+      -o "$resp_file" -w '%{http_code}' \
+      "https://generativelanguage.googleapis.com/v1beta/models/$MODEL:generateContent?key=$API_KEY" 2>/dev/null || true)"
+    case "$http_code" in
+      000|"") [ "$attempt" -lt 3 ] && sleep 1; continue ;;   # lỗi mạng
+      5*)     [ "$attempt" -lt 3 ] && sleep 1; continue ;;   # lỗi server tạm thời
+    esac
+    break   # 2xx / 4xx (gồm 429) → xử lý bên dưới
+  done
+
+  local response
+  response="$(cat "$resp_file" 2>/dev/null || true)"
+  rm -f "$resp_file"
+
+  result="$(printf '%s' "$response" | jq -r '.candidates[0].content.parts[0].text // empty' 2>/dev/null || true)"
+  # Bỏ markdown fence nếu model tự bọc.
+  result="$(printf '%s' "$result" | sed -e 's/^```[a-zA-Z]*//' -e 's/```$//' \
+    | sed -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//')"
+
+  if [ -z "${result//[[:space:]]/}" ]; then
+    # 429 ở mode có chiều dịch → cờ fallback Google Translate.
+    if [ "$http_code" = 429 ] && [ -n "$gt_tl" ]; then
+      FALLBACK_GT=1
+      return
+    fi
+    local msg
+    case "$http_code" in
+      200)          msg="API trả về phản hồi rỗng, thử lại." ;;
+      429)          msg="Gemini hết quota free tier (HTTP 429). Chờ ~1 phút rồi thử lại." ;;
+      400|401|403)  msg="API key sai hoặc bị từ chối (HTTP ${http_code})." ;;
+      5*)           msg="Lỗi phía Google API (HTTP ${http_code}), thử lại sau." ;;
+      *)            msg="Mạng/DNS không truy cập được Google API. Bấm Super+Shift+r để reload mạng rồi thử lại." ;;
+    esac
+    ntf -u critical "Quick Lang" "$msg"
+    exit 1
+  fi
+}
+
+# ── Google Translate (fallback) ─────────────────────────────
+# sl=auto tự nhận nguồn. Response có 2 dạng — jq xử lý cả hai.
+translate_gt() {
+  local q response attempt
+  q="$(jq -rn --arg q "$text" '$q|@uri')"
+  result=""
+  for attempt in 1 2; do
+    response="$(curl -sS --connect-timeout 5 --max-time 15 \
+      -A 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0.0.0 Safari/537.36' \
+      "https://clients5.google.com/translate_a/t?client=dict-chrome-ex&sl=auto&tl=$gt_tl&q=$q" 2>/dev/null || true)"
+    result="$(printf '%s' "$response" | jq -r 'if (.[0]|type)=="string" then map(select(type=="string"))|join("") else map(.[0] // "")|join("") end' 2>/dev/null || true)"
+    [ -n "${result//[[:space:]]/}" ] && break
+    sleep 1
+  done
+
+  if [ -z "${result//[[:space:]]/}" ]; then
+    ntf -u critical "Quick Lang · GT" "Dịch thất bại — kiểm tra kết nối mạng (hoặc bấm Super+Shift+r để reload mạng)."
+    exit 1
+  fi
+}
+
+translate_ai
+
+if [ "${FALLBACK_GT:-0}" = 1 ]; then
+  ntf "Quick Lang · GT" "Gemini hết quota (429) → dùng Google Translate."
+  translate_gt
+fi
+
+printf %s "$result" | wl-copy
+
+# So sánh đầu ra với đầu vào: nguyên văn = đã tự nhiên, khác = đã sửa.
+case "$mode" in
+  vi-en)
+    if [ "$result" = "$text" ]; then title="✓ EN đã tự nhiên"; else title="→ EN"; fi ;;
+  fix)
+    if [ "$result" = "$text" ]; then title="✓ EN đã tự nhiên"; else title="✍️ EN đã sửa"; fi ;;
+  en-vi) title="→ VI" ;;
+esac
+[ -n "$CTX_LABEL" ] && title="$title · $CTX_LABEL"
+
+ntf "$title" "$result"
+
+    rule="The text below is English written by a learner. Proofread it. If it is already correct and natural, output it EXACTLY unchanged. If it has real errors (grammar, word choice, collocation, unnatural phrasing), output only the corrected version, changing as little as possible. $CTX_RULE Preserve the author's meaning and voice. Keep proper nouns and technical terms. Output ONLY the resulting text, with no explanations or notes."
+    gt_tl=""
+    ;;
+  *) ntf "Quick Lang" "Mode không hợp lệ: $mode (dùng vi-en | en-vi | fix)"; exit 1 ;;
+esac

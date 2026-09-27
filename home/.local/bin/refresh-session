@@ -1,0 +1,12 @@
+#!/usr/bin/env bash
+# Nạp lại phiên mà không phải logout.
+# Super+Shift+C — dùng sau khi sửa ~/.config/sway/config.
+set -u
+
+# wlsunset: tắt instance cũ rồi bật lại với tham số mặc định, tránh
+# tích tụ nhiều process mỗi lần reload.
+pkill -x wlsunset 2>/dev/null || true
+wlsunset -t 4000 -T 6500 -l 21.0 -L 105.8 &
+
+# Ảnh nền giữ nguyên (awww daemon vẫn đang hiển thị).
+swaymsg reload

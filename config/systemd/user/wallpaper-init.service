@@ -1,0 +1,31 @@
+# Khôi phục ảnh nền lúc đăng nhập.
+#
+# Chạy MỘT LẦN, sau awww-daemon. --restore nghĩa là "giữ ảnh phiên
+# trước nếu awww đã khôi phục được; chưa có thì random ảnh".
+#
+# ⚠️ VÌ SAO LÀ UNIT MÀ KHÔNG PHẢI DÒNG `exec` TRONG sway/config?
+#    Trước đây Sway gọi wallpaper-set lúc khởi động, nên script phải TỰ
+#    đoán xem daemon đã sẵn sàng chưa — bằng cách poll trong vòng lặp.
+#    Đó là đoán bằng sleep, dễ sai và khó bảo trì.
+#    Ở đây systemd ĐẢM BẢO thứ tự bằng After=, và service này tự chạy
+#    theo sway-session.target — không cần Sway biết gì cả.
+#
+# Chạy SAU khi có thể hiển thị: `After=graphical-session-pre.target` là
+# mốc systemd dành riêng cho "sắp có phiên đồ hoạ", khác
+# `graphical-session.target` (mốc ĐÃ có rồi — nếu dùng sai mốc này,
+# unit có thể treo vô hạn khi không ai kéo target đó lên).
+
+[Unit]
+Description=Khôi phục ảnh nền phiên trước (hoặc random nếu chưa có)
+After=sway-session.target awww-daemon.service graphical-session-pre.target
+# PartOf: dừng theo phiên Sway. WantedBy (bên dưới): được kéo lên mỗi
+# lần Sway khởi động — nên nhờ nó, Sway không cần biết gì về ảnh nền.
+PartOf=sway-session.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=%h/.local/bin/wallpaper-set --restore
+
+[Install]
+WantedBy=sway-session.target

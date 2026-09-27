@@ -1,0 +1,39 @@
+#!/usr/bin/env bash
+# Giới hạn sạc pin 85–90% (chống sạc 100% liên tục → pin bền hơn).
+#
+# Driver Intel TI đặt file sysfs tên `charge_control_*`; nhiều driver
+# khác (và laptop đời cũ) dùng `charge_*`. Script thử cả hai và im
+# lặng bỏ qua pin không hỗ trợ.
+#
+# ⚠️ KHÔNG đặt cả 2 cặp cùng lúc: chỉ cặp đầu tiên tồn tại mới được
+#    ghi, nếu không máy có thể nhận giá trị sai.
+#
+# Giá trị KHÔNG phải phần trăm — driver tự quy đổi sang mức 0–100.
+set -u
+
+START=85
+END=90
+configured=0
+
+for battery in /sys/class/power_supply/BAT*; do
+  [ -d "$battery" ] || continue
+
+  if   [ -e "$battery/charge_control_start_threshold" ]; then start_file="$battery/charge_control_start_threshold"
+  elif [ -e "$battery/charge_start_threshold" ];          then start_file="$battery/charge_start_threshold"
+  else continue; fi
+
+  if   [ -e "$battery/charge_control_end_threshold" ];   then end_file="$battery/charge_control_end_threshold"
+  elif [ -e "$battery/charge_stop_threshold" ];          then end_file="$battery/charge_stop_threshold"
+  else continue; fi
+
+  printf '%s\n' "$START" > "$start_file"
+  printf '%s\n' "$END"   > "$end_file"
+  echo "set-battery-threshold: $start_file=$START $end_file=$END"
+  configured=1
+done
+
+if [ "$configured" -eq 0 ]; then
+  echo "set-battery-threshold: pin này không hỗ trợ giới hạn sạc — bỏ qua." >&2
+fi
+
+exit 0

@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# Watcher cho trường hợp: đã idle 900s nhưng đang CẮM SẠC, nên
+# idle-suspend chỉ trồng watcher này thay vì ngủ. Khi rút sạc → khoá +
+# ngủ. Thoát khi có thao tác, có phiên Focus, mất sway, hoặc hết pin.
+set -u
+
+LOCK="$HOME/.local/bin/lock-screen"
+
+while true; do
+  # Mất sway (đã logout / restart) → thôi theo.
+  out="$(swaymsg -t get_outputs 2>/dev/null)" || exit 0
+  [ -n "$out" ] || exit 0
+
+  # Màn hình đã bật lại = có thao tác → thôi.
+  if printf '%s' "$out" | grep -q '"power": true'; then
+    exit 0
+  fi
+
+  # Phiên Focus → thôi.
+  if pgrep -f "study daemon" >/dev/null 2>&1; then
+    exit 0
+  fi
+
+  for bat in /sys/class/power_supply/BAT*; do
+    [ -e "$bat/status" ] || continue
+    if [ "$(cat "$bat/status" 2>/dev/null)" = "Discharging" ]; then
+      "$LOCK" >/dev/null 2>&1
+      exec systemctl suspend
+    fi
+  done
+
+  sleep 30
+done

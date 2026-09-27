@@ -1,0 +1,71 @@
+#!/usr/bin/env bash
+# Menu đồng hồ Focus — Super+P. Không có "break": rảnh → khởi động,
+# có phiên → chỉ tạm dừng/tiếp tục + reset.
+set -u
+
+STUDY="$HOME/.local/bin/study"
+STATE_DIR="${XDG_RUNTIME_DIR:-$HOME/.local/state}"
+
+format_time() {
+  local secs=$1
+  printf "%02d:%02d" $((secs / 60)) $((secs % 60))
+}
+
+# `status` tự finalize/hồi sinh trước khi dựng menu.
+"$STUDY" status >/dev/null
+
+DURATION=""; RUNNING="false"; END_TIME=""; REMAINING=""
+if [ -f "$STATE_DIR/study-state" ]; then
+  # shellcheck disable=SC1090
+  . "$STATE_DIR/study-state"
+fi
+
+r=0
+if [ "$RUNNING" = "true" ] && [ -n "$END_TIME" ]; then
+  r=$((END_TIME - $(date +%s)))
+  [ "$r" -lt 0 ] && r=0
+elif [ -n "$REMAINING" ]; then
+  r="$REMAINING"
+fi
+
+if [ -n "$DURATION" ]; then
+  if [ "$RUNNING" = "true" ]; then ITEMS=("⏸ $(format_time "$r")")
+  else                              ITEMS=("▶ $(format_time "$r")")
+  fi
+  ITEMS+=("↺ Reset")
+else
+  ITEMS=("⌨ Nhập phút (1–480)...")
+  ITEMS+=("🍅 30")
+  ITEMS+=("🍅 60")
+  ITEMS+=("🍅 120")
+fi
+
+choice="$(printf '%s\n' "${ITEMS[@]}" | rofi -dmenu -i -p "Focus" \
+  -mesg "⌨ phút 1–480 · 🍅 30/60/120 · ⏸/▶ tạm dừng/tiếp tục · ↺ reset")"
+
+# Hủy (rỗng) → thoát im lặng; sai định dạng → báo lỗi.
+ask_minutes() {
+  local minutes
+  minutes="$(rofi -dmenu -p "Focus — số phút (1–480)")"
+  if [ -z "$minutes" ]; then
+    exit 0
+  fi
+  if ! [[ "$minutes" =~ ^[1-9][0-9]*$ ]] || [ "$minutes" -lt 1 ] || [ "$minutes" -gt 480 ]; then
+    notify-send -a focus -i "dialog-error" -t 4000 \
+      "Focus" "Số phút không hợp lệ: $minutes (cần 1–480)"
+    exit 1
+  fi
+  printf '%s\n' "$minutes"
+}
+
+case "$choice" in
+  "⌨ Nhập phút (1–480)...")
+    m="$(ask_minutes)" && [ -n "$m" ] && exec "$STUDY" start "$m"
+    ;;
+  "🍅 30")  exec "$STUDY" start 30  ;;
+  "🍅 60")  exec "$STUDY" start 60  ;;
+  "🍅 120") exec "$STUDY" start 120 ;;
+  "⏸ "*)    exec "$STUDY" toggle   ;;
+  "▶ "*)    exec "$STUDY" toggle   ;;
+  "↺ Reset") exec "$STUDY" reset    ;;
+esac

@@ -1,0 +1,37 @@
+# Yazi — cấu hình CỐ Ý TỐI GIẢN.
+#
+# Yazi tự merge với config mặc định nên chỉ khai cái thật sự cần.
+# Sai khoá → yazi báo lỗi rồi RƠI VỀ TOÀN BỘ preset, nên đừng thử
+# lung tung. Kiểm tra file nào được nạp: `yazi --debug`.
+
+# ── Opener ────────────────────────────────────────────────
+# `%s` = đường dẫn file, bắt buộc có.
+# ⚠️ `orphan = true` BẮT BUỘC: yazi dùng `kill_on_drop(!orphan)` nên
+#    thiếu nó thì đóng yazi (`q`) là SIGKILL luôn cửa sổ nvim vừa mở.
+edit = [
+  { run = 'foot --title=nvim nvim %s', for = "unix", orphan = true, desc = "Edit" },
+]
+
+# ── Thêm opener (ví dụ mở bằng app khác) ───────────────────
+#   [opener]
+#   reveal = [
+#     { run = 'foot --title=nvim nvim %D', for = "directory", orphan = true },
+#   ]
+
+# ── Tỉ lệ cột ─────────────────────────────────────────────
+# ⚠️ CHỈ NHẬN ĐÚNG 3 PHẦN TỬ. Yazi cắt bỏ phần tử thừa mà KHÔNG báo
+#    lỗi — `ratio = [1,2,3,...,9]` chạy bình thường nhưng thực tế chỉ
+#    dùng `[1,2,3]`. Không có tính năng xoay vòng nhiều tỉ lệ.
+[mgr]
+ratio = [1, 4, 3]
+
+# ── Preview ────────────────────────────────────────────────
+# ⭐ Preview ảnh nhờ foot hỗ trợ SIXEL (foot đặt TERM=foot, yazi tự
+#    nhận diện driver) — không cần cài gì thêm.
+#
+# ⚠️ Preview PDF / video / SVG CẦN gói ngoài (yazi chỉ khai chúng là
+#    optdepends, không tự cài):
+#       sudo pacman -S poppler      # PDF
+#       sudo pacman -S ffmpeg       # video
+#       sudo pacman -S resvg imagemagick   # SVG
+#    Thiếu thì yazi chỉ hiện chữ, không hỏng gì.

@@ -1,0 +1,52 @@
+#!/usr/bin/env bash
+# Dọn thùng rác GIO, giữ lại N ngày gần nhất.
+# Chạy tự động lúc 03:00 qua trash-clean.timer.
+#
+# ⚠️ VÌ SAO KHÔNG DÙNG `gio trash --empty`?
+#    Lệnh đó xoá SẠCH toàn bộ. File lỡ tay xoá tối qua sẽ mất vĩnh
+#    viễn lúc 3h sáng — không kịp khôi phục bằng `g t` trong yazi.
+#    Script này chỉ xoá mục CŨ HƠN N ngày nên vẫn cửa sổ khôi phục.
+#
+# Xoá cả file lẫn .trashinfo cùng lúc: nếu chỉ xoá file thì .trashinfo
+# mồ côi sẽ làm gio/yazi báo "trash hỏng" hoặc hiện file không tồn tại.
+set -u
+
+# 30 ngày — thùng rác đang dùng làm vùng an toàn. Đổi ở
+# trash-clean.service (ExecStart).
+KEEP_DAYS="${1:-30}"
+TRASH_DIR="$HOME/.local/share/Trash"
+FILES_DIR="$TRASH_DIR/files"
+INFO_DIR="$TRASH_DIR/info"
+
+# Chưa từng dùng thùng rác → thoát im lặng, không spam journal.
+[ -d "$INFO_DIR" ] || exit 0
+
+# Mốc cắt: mục CŨ HƠN mốc này bị xoá. So sánh chuỗi ngày YYYY-MM-DD
+# thì đúng theo thứ tự (zero-padded) nên không cần so sánh số.
+CUTOFF="$(date -d "$KEEP_DAYS days ago" +%Y-%m-%d)"
+
+removed=0
+kept=0
+for info in "$INFO_DIR"/*.trashinfo; do
+  [ -e "$info" ] || continue
+
+  # DeletionDate trong .trashinfo là ISO: 2026-09-08T11:16:25
+  when="$(sed -n 's/^DeletionDate=//p' "$info" | head -1 | cut -dT -f1)"
+  [ -n "$when" ] || when="$(date +%Y-%m-%d)"   # thiếu dữ liệu → coi như mới
+
+  if [[ "$when" < "$CUTOFF" ]]; then
+    base="${info##*/}"
+    base="${base%.trashinfo}"
+    # rm -rf: mục có thể là thư mục. -f để không lỗi nếu đã mất.
+    rm -rf -- "$FILES_DIR/$base" "$info" 2>/dev/null || true
+    removed=$((removed + 1))
+  else
+    kept=$((kept + 1))
+  fi
+done
+
+echo "thung rac: giu $kept muc (<= ${KEEP_DAYS} ngay), da xoa $removed muc (< $CUTOFF)"
+
+size="$(du -sh "$FILES_DIR" 2>/dev/null | cut -f1)"
+[ -n "$size" ] && [ "$size" != "0" ] && echo "dung luong con lai trong thung rac: $size"
+exit 0

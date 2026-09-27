@@ -1,0 +1,8 @@
+# Cho phép nhóm `wheel` dùng sudo. install.sh chạy `visudo -c` để kiểm
+# tra trước khi file này có hiệu lực.
+#
+# ⚠️ File sudoers phải có quyền 440 và KHÔNG được sở hữu bởi người
+#    dùng — nếu sai, sudo sẽ bỏ qua file và bạn mất quyền admin mà
+#    không có báo lỗi nào.
+
+%wheel ALL=(ALL:ALL) ALL

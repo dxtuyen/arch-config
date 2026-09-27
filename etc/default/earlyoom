@@ -1,0 +1,9 @@
+# earlyoom — giết tiến trình ngốn RAM TRƯỚC khi hệ thống chết cứng.
+# -p bật thông báo (cần `libnotify` + `systemd-oomd` không? không —
+#   earlyoom tự gọi notify-send), -r 2 = báo động khi còn dưới 2%.
+#
+# systemd-oomd bị MASK trong install.sh: chạy cả hai daemon OOM là
+# hai bộ giết tranh nhau, dễ giết nhầm tiến trình.
+
+EARLYOOM_ARGS="-p -r 2"
+EARLYOOM_NOTIFY=1

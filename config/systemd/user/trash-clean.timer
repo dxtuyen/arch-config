@@ -1,0 +1,15 @@
+# Chạy trash-clean.service lúc 03:00 hằng ngày.
+
+[Unit]
+Description=Dọn thùng rác lúc 03:00 hằng ngày
+
+[Timer]
+OnCalendar=*-*-* 03:00:00
+
+# ⭐ BẮT BUỘC: máy tắt lúc 3h (rất hay xảy ra) thì timer đó bị bỏ
+#   qua. Persistent=true chạy BÙ ngay khi bật máy lần sau. Thiếu nó
+#   → rác tích tụ vô hạn.
+Persistent=true
+
+[Install]
+WantedBy=timers.target
