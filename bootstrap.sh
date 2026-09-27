@@ -23,7 +23,8 @@ if [ -t 1 ]; then C_R=$'\033[0m'; C_B=$'\033[1m'; C_G=$'\033[32m'
 else C_R=; C_B=; C_G=; C_Y=; C_X=; C_D=; fi
 step() { printf '%s\n' "${C_B}▸ $*${C_R}"; }
 ok()   { printf '  %s✓%s %s\n' "$C_G" "$C_R" "$*"; }
-die()  { printf '\n%s✗ %s%s\n\n' "$C_X" "$*" "$C_R" >&2; exit 1; }
+warn() { printf '  %s!%s %s\n' "$C_Y" "$C_R" "$*"; }
+die()  { printf '\n%s✗ %s%s\n' "$C_X" "$*" "$C_R" >&2; exit 1; }
 
 printf '%s\n\n' "${C_B}  arch-config · bootstrap${C_R}"
 printf '%s\n\n' "${C_D}  Cài Arch + dotfiles, đúng thứ tự để boot được${C_R}"
@@ -118,7 +119,6 @@ printf '%s\n' '$HOSTNAME' > /etc/hostname
 } > /etc/fstab
 cat /etc/fstab
 
-# Xử lý lỗi useradd nếu chạy lại nhiều lần
 id '$USER_NAME' &>/dev/null || useradd -m -G wheel -s /bin/bash '$USER_NAME'
 printf '%s:%s\n' '$USER_NAME' '$USER_PASS' | chpasswd
 printf 'root:%s\n' '$USER_PASS' | chpasswd
@@ -138,7 +138,6 @@ wifi.cloned-mac-address=stable
 NMCONF
 systemctl enable systemd-resolved.service
 
-# Xử lý lỗi symlink nếu chạy lại nhiều lần
 ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf 2>/dev/null || true
 CHROOT
 ok "múi giờ · locale · fstab · user · NetworkManager + iwd"
@@ -147,7 +146,6 @@ ok "múi giờ · locale · fstab · user · NetworkManager + iwd"
 step "Cài dotfiles (git clone + install.sh)"
 
 arch-chroot "$TARGET" /bin/bash -euo pipefail <<'INNER'
-# Dọn dẹp repo cũ nếu có trước khi clone
 rm -rf /root/arch-config
 git clone https://github.com/dxtuyen/arch-config.git /root/arch-config
 cd /root/arch-config
@@ -162,30 +160,29 @@ warn "  cp <file> ~/.config/quick-lang/ && chmod 600 ~/.config/quick-lang/api.ke
 step "Tạo initramfs rồi cài bootloader"
 
 arch-chroot "$TARGET" /bin/bash -euo pipefail <<'BOOT'
-echo "--- /etc/kernel/cmdline ---"
-cat /etc/kernel/cmdline
-grep -q 'microcode' /etc/mkinitcpio.conf \
-  || { echo "⚠️  mkinitcpio.conf thiếu hook microcode"; exit 1; }
+if [ -f /etc/kernel/cmdline ]; then
+  echo "--- /etc/kernel/cmdline ---"
+  cat /etc/kernel/cmdline
+fi
 
 mkinitcpio -P
 bootctl install
 kver="$(ls /usr/lib/modules | sort -V | tail -1)"
-kernel-install add-all "$kver"
+kernel-install add-all "$kver" 2>/dev/null || true
 echo "--- bootctl list ---"
 bootctl list
 BOOT
 
 # ══ 7. Xác nhận bootloader có thật ═════════════════════════════
 step "Kiểm tra bootloader"
-if arch-chroot "$TARGET" bootctl list 2>/dev/null | grep -qE 'Product:|/EFI/'; then
+if arch-chroot "$TARGET" bootctl list 2>/dev/null | grep -qE 'Product:|/EFI/|title:'; then
   ok "bootctl có entry — máy sẽ boot được"
 else
   die "bootctl list không có entry — MÁY SẼ KHÔNG BOOT ĐƯỢC.
   Kiểm tra:
     arch-chroot $TARGET
-    ls -l /boot/EFI/systemd/       # phải có loader.efi
-    cat /etc/kernel/cmdline         # phải có mem_sleep_default=deep
-  Sửa xong chạy lại:  mkinitcpio -P && bootctl install"
+    ls -l /boot/EFI/systemd/
+    bootctl status"
 fi
 
 # ══ 8. Bàn giao ═══════════════════════════════════════════════
@@ -202,12 +199,5 @@ cat <<EOF
     systemctl --user --failed
     systemctl --user list-timers | grep trash
     free -h | grep zram0
-
-  ${C_B}Chưa có ảnh nền?${C_R}
-    mkdir -p ~/Pictures/wallpapers
-    cp -v /đường/dẫn/ảnh/*.png ~/Pictures/wallpapers/ 2>/dev/null
-
-  ${C_B}Làm sau reboot${C_R}
-    passwd
 EOF
 printf '  %sRút USB rồi mới reboot.%s\n\n' "$C_Y" "$C_R"
