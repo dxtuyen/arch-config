@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Wrapper khởi động Sway từ greetd/tuigreet.
+#
+# greetd chạy `command` bằng sh(1) TRƯỚC khi có phiên đăng nhập, nên không
+# nạp được biến môi trường của user. Script này được `tuigreet --cmd` gọi
+# SAU khi đã xác thực, nên mọi thứ ở đây chạy đúng trong phiên user thật.
+#
+# Tách thành file riêng vì `command` trong config.toml là MỘT chuỗi, dài
+# và có nhiều lớp trích dẫn lồng nhau — dễ sai, mà sai thì mất luôn màn
+# hình đăng nhập chứ không chỉ mất biến môi trường.
+#
+# ⚠️ greetd chạy greeter dưới user `greeter`, nên file này phải ĐỌC ĐƯỢC
+#    bởi user khác (chmod 755 là mặc định đúng). Nhưng
+#    ~/.config/session-env.sh thuộc user thật — greeter không cần đọc nó,
+#    chỉ user đã đăng nhập mới nạp ở dưới đây.
+set -eu
+
+# Nạp biến môi trường (fcitx, Electron native Wayland). Dùng `|| true` vì
+# file có thể chưa có ở lần đăng nhập đầu tiên nếu dotfiles vừa mới cài —
+# thiếu biến thì chỉ mất IME, còn không nạp thì Sway vẫn lên được.
+[ -r "$HOME/.config/session-env.sh" ] && . "$HOME/.config/session-env.sh" || true
+
+# logind đọc XDG_SESSION_TYPE để quyết định session là wayland hay x11.
+# Tuigreet tự đặt, nhưng đặt lại ở đây cho chắc — Sway cần `type=wayland`
+# để có hành vi đúng (ví dụ wlr-layer-shell cho các ứng dụng khác).
+export XDG_SESSION_TYPE=wayland
+export XDG_SESSION_DESKTOP=sway
+export XDG_CURRENT_DESKTOP=sway
+
+exec sway "$@"

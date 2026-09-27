@@ -35,25 +35,37 @@ arch-config/
 │   ├── foot/foot.ini · mako/config · starship.toml
 │   ├── fcitx5/{profile,conf/bamboo.conf}
 │   ├── yazi/{yazi,keymap,theme}.toml
-│   ├── greetd/config.toml · session-env.sh
 │   ├── lib/wallpaper.sh    # hằng số + hàm dùng chung cho script ảnh nền
-│   ├── environment.d/10-session.conf
+│   ├── session-env.sh      # ⭐ nguồn biến môi trường DUY NHẤT
 │   ├── mimeapps.list · gtk-3.0/settings.ini · xfce4/helpers.rc
 │   └── systemd/user/       # swayidle, awww-daemon, wallpaper-init,
 │                           # trash-clean(+timer), fcitx5
 ├── home/                   # stow → ~/
-│   ├── gitconfig · bashrc
+│   ├── .gitconfig · .bashrc
 │   ├── .local/bin/         # 18 script
 │   └── .local/share/applications/
 ├── etc/                    # stow → /etc
+│   ├── greetd/config.toml  # ⚠️ PHẢI ở /etc, không phải ~/.config
 │   ├── keyd/default.conf · default/earlyoom
 │   ├── systemd/zram-generator.conf · systemd/logind.conf.d/
 │   ├── systemd/system/battery-threshold.service
-│   ├── kernel/cmdline · mkinitcpio.conf · locale.conf
+│   ├── kernel/cmdline · mkinitcpio.conf · locale.conf · hostname
 │   └── pacman.d/mirrorlist · sudoers.d/wheel
 ├── usr/local/bin/          # stow → /usr/local/bin
+│   ├── start-sway          # wrapper greetd gọi sau khi đăng nhập
+│   └── set-battery-threshold
 └── lockscreen/lockscreen.png
 ```
+
+> ⚠️ **`greetd/config.toml` nằm trong `etc/`, không phải `config/`.** Đây
+> là chỗ duy nhất phá vỡ quy tắc "mọi thứ trong `config/` đều là
+> `~/.config`". Lý do: greetd chỉ đọc `/etc/greetd/config.toml`
+> (man greetd(1)) — không có đường dẫn theo user như `~/.config/`.
+> Đặt nhầm vào `~/.config/greetd/` thì greetd im lặng dùng config mặc
+> định, bạn đăng nhập được nhưng rơi vào shell trần — không có Sway.
+
+> `config/environment.d/` **không có trong repo**: `install.sh` sinh ra từ
+> `session-env.sh` mỗi lần chạy, nên không thể lệch hai nơi.
 
 > **Ảnh khoá màn hình:** `lockscreen/lockscreen.png` lấy từ
 > [LagrangianLad/arch-minimal-wallpapers](https://github.com/LagrangianLad/arch-minimal-wallpapers)
@@ -229,12 +241,17 @@ systemctl --user status wallpaper-init
 
 | Triệu chứng | Nguyên nhân thường gặp |
 |---|---|
+| **Đăng nhập xong rơi vào `/bin/sh`, không có Sway** | greetd không đọc `~/.config/greetd/config.toml`. Kiểm: `sudo cat /etc/greetd/config.toml` phải thấy `tuigreet` |
 | Không lên màn hình đăng nhập | `bootctl list` rỗng → `bootctl install` chạy lúc ESP chưa mount |
 | Vào Sway nhưng không gõ được tiếng Việt | `systemctl --user status fcitx5` → đọc log |
 | `sudo: command not found` | quên `pacman -S sudo` ở Bước 2 |
 | Không có mạng | thiếu `/etc/systemd/network/20-wifi.network` |
 | Máy không boot | `/etc/fstab` sai UUID → đọc log trên màn hình initramfs |
 | `sudo` báo "not in the sudoers file" | `/etc/sudoers.d/wheel` quyền ≠ 440 → `sudo chmod 440` |
+
+Mất màn hình đăng nhập thì sửa được từ TTY khác: `Ctrl+Alt+F2`, đăng
+nhập, rồi thêm `systemd.mask=greetd.service` vào `/etc/kernel/cmdline`
+để tạm lấy lại `agetty` mà sửa cấu hình.
 
 ---
 

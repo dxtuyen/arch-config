@@ -7,7 +7,8 @@
 #  Sửa biến ở đây, chạy lại ./install.sh là xong — không có chuyện
 #  sửa một nơi, quên chỗ kia.
 #
-#  Nạp bởi greetd (`sh -c '. ~/.config/session-env.sh; exec sway'`).
+#  Nạp bởi `usr/local/bin/start-sway` — wrapper mà `tuigreet --cmd` gọi
+#  SAU khi đã xác thực, nên đây đúng là trong phiên user thật.
 #  App Sway mở ra đều kế thừa các biến này. Đổi xong thì
 #  Super+Shift+C để nạp lại, hoặc logout/login lại.
 # ══════════════════════════════════════════════════════════════

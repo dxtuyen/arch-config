@@ -1,0 +1,42 @@
+# ══════════════════════════════════════════════════════════════
+#  greetd — quản lý phiên đăng nhập (greeter: tuigreet)
+#
+#  ⚠️ PHẢI Ở /etc/greetd/config.toml. KHÔNG phải ~/.config/greetd/
+#     Man page greetd(1) nói rõ: "greetd looks for a configuration file
+#     in /etc/greetd/config.toml by default." — CHỈ đường dẫn này.
+#     greetd KHÔNG đọc config theo user (khác với greetd/agreetd).
+#     Đặt nhầm ở ~/.config/ thì greetd chạy config mặc định
+#     `agreety --cmd /bin/sh`: đăng nhập được nhưng rơi vào shell trần,
+#     không có Sway, không có gì — mà màn hình nhìn vẫn "bình thường".
+#
+#  File này được stow từ package `etc/` (→ /etc) nên nằm trong repo mà
+#  vẫn cài đúng chỗ.
+#
+#  ── Về `user = "greeter"` ──────────────────────────────────
+#  greetd chạy greeter dưới user này. KHÔNG cần tự `useradd`: package
+#  greetd kèm greetd.sysusers
+#      u greeter - "greetd greeter user" - /bin/bash
+#      m greeter video
+#  và systemd-sysusers tạo lúc cài đặt.
+#
+#  ── Về `command` ───────────────────────────────────────────
+#  Chạy bằng sh(1). `tuigreet --cmd X` nghĩa là: hiện màn hình đăng
+#  nhập, xác thực xong MỚI chạy X. Nếu viết thẳng `exec sway` ở đây
+#  thì Sway chạy NGAY, không ai nhập tên/mật khẩu, và không có cửa sổ
+#  để đăng xuất.
+#
+#  X nên là /usr/local/bin/start-sway (wrapper trong package `usr/`) vì
+#  cần nạp ~/.config/session-env.sh trước khi lên Sway — viết thành
+#  chuỗi lồng trích dẫn ở đây rất dễ sai.
+#
+#  ⚠️ KHÔNG thêm `--user <tên>`: tuigreet tự đọc danh sách user qua NSS,
+#     tên đăng nhập lấy từ PAM. Ghi cứng tên ở đây thì máy khác phải
+#     sửa lại, đúng thứ repo này tránh.
+# ══════════════════════════════════════════════════════════════
+
+[terminal]
+vt = 1
+
+[default_session]
+user = "greeter"
+command = "tuigreet --time --cmd /usr/local/bin/start-sway"
