@@ -115,32 +115,14 @@ else
 fi
 
 
-# ── 5. Entry .desktop sinh động ────────────────────────────
-# File .desktop phải có ĐƯỜNG DẪN TUYỜT ĐỐI — Rofi loại bỏ entry khi
-# không tìm thấy binary (session Sway không có ~/.local/bin trong PATH).
-# Vì vậy entry RemNote được SINH RA Ở ĐÂY chứ không để trong repo: nếu
-# nằm trong repo thì sẽ ghi cứng tên user và hỏng trên máy khác.
-step "Sinh entry RemNote cho launcher"
-APPS="$HOME/.local/share/applications"
-APPS_DIR="$HOME/Apps/RemNote"
-mkdir -p "$APPS" "$APPS_DIR"
-cat > "$APPS/remnote.desktop" <<EOF
-[Desktop Entry]
-Type=Application
-Name=RemNote
-Comment=RemNote note-taking app
-Exec=$APPS_DIR/RemNote.AppImage %U
-Icon=$HOME/.local/share/icons/hicolor/512x512/apps/remnote.png
-Terminal=false
-StartupNotify=true
-Categories=Office;Utility
-StartupWMClass=RemNote
-EOF
-command -v update-desktop-database >/dev/null && update-desktop-database "$APPS" >/dev/null 2>&1 || true
-info "remnote.desktop"
-if [ ! -f "$APPS_DIR/RemNote.AppImage" ]; then
-  info "Chưa có AppImage — tải RemNote về ~/Downloads rồi chạy: setup-remnote"
-fi
+# ── 5. Ứng dụng AppImage ───────────────────────────────────
+# ⛔ KHÔNG sinh file .desktop cho RemNote ở đây. File .desktop của
+#    RemNote nằm BÊN TRONG AppImage, do tác giả app viết (đúng Exec, Icon,
+#    Categories, MimeType). Viết tay thì dễ sai và lệch mỗi lần app cập
+#    nhật — script `setup-remnote` sẽ lấy file gốc đó ra.
+#
+#    Trước khi bạn tải AppImage thì launcher không có RemNote. Đúng như
+#    mong đợi, không phải lỗi.
 
 # ── 6. Locale ──────────────────────────────────────────────
 step "Sinh locale"

@@ -2,9 +2,9 @@
 # Menu nguồn. Super+Shift+P.
 set -u
 
-# ⛔ CỐ Ý KHÔNG có mục Hibernate: máy này không cấu hình swap riêng để
-#    hibernate (xem README — chỉ có zram trong RAM, mất sạch khi tắt).
-#    Mục đó chỉ hiện hữu ích sau khi bạn tự thêm swapfile + initramfs hook.
+# Cố ý KHÔNG có mục Hibernate: máy không có swap trên đĩa (chỉ zram trong
+# RAM, tắt máy là mất). Ngủ suspend-to-RAM là đủ dùng — xem
+# etc/kernel/cmdline.
 MENU="⏻ Tắt máy
 ↻ Khởi động lại
 ⏾ Ngủ

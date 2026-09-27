@@ -50,4 +50,3 @@ Các mục dưới đây đã bị gỡ khỏi dotfiles (kèm lý do) — cài r
 | `FCITX_ADDON_DIRS` / `FCITX_DATA_DIRS` | chỉ cần vì Nix đặt addon ngoài FHS. Arch đặt đúng chỗ |
 | `vm-nixos` (script) | dùng để luyện cài NixOS trong QEMU. Muốn thì viết lại thành `vm-arch` |
 | `sioyek-open`, `dict-toggle` | phụ thuộc app AUR ở trên |
-| Hibernate + `resume=UUID=` | máy không cấu hình swap riêng. Xem README mục "Hibernate" |

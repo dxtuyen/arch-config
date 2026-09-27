@@ -42,7 +42,19 @@ read_state() {
 # Chống idle từ 2 nguồn: phiên chạy (tự động) + bấm tay (thủ công).
 # Có nguồn nào → dừng swayidle. Gọi trong write_state nên chỉ chạy lúc
 # chuyển trạng thái, không lặp mỗi giây.
+#
+# ⭐ SS_SLEEP_HOOK — chốt an toàn, KHÔNG ĐƯỢC BỎ.
+#   Hàm này được gọi cả từ sleep-pause, mà sleep-pause lại chạy bên
+#   trong hook `before-sleep` của swayidle. Nếu từ đó mà `stop swayidle`
+#   thì swayidle bị giết giữa lúc đang gọi mình:
+#     · systemctl stop là dừng SẠCH → Restart=on-failure không bật lại
+#     · sau khi thức dậy, `after-resume` không chạy
+#     · → sleep-resume không chạy → phiên Focus mất và không tự tiếp tục
+#   Ngoài ra màn hình cũng không kịp khoá nếu lệnh chết giữa chừng.
+#   swayidle.service đặt SS_SLEEP_HOOK=1 cho cả hai hook.
 sync_idle_inhibit() {
+  [ "${SS_SLEEP_HOOK:-}" = "1" ] && return 0
+
   if { [ "$RUNNING" = "true" ] && [ -n "$END_TIME" ]; } || [ -f "$MANUAL_FLAG" ]; then
     systemctl --user stop swayidle 2>/dev/null || true
   else

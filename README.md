@@ -76,7 +76,7 @@ lsblk                                    # xác định đúng ổ USB — ĐỪ
 sudo dd if=archlinux-x86_64.iso of=/dev/sdX bs=4M status=progress conv=fsync
 ```
 
-### Bước 1 · Phân vùng (không tạo swap — xem mục Hibernate)
+### Bước 1 · Phân vùng (không tạo swap)
 
 ```bash
 cfdisk /dev/nvme0n1
@@ -295,22 +295,6 @@ không còn gì chạy nền.
 Ảnh nằm ở `~/Pictures/wallpapers` — **ngoài repo**, cp/rm tự do, không
 cần cài lại dotfiles. Máy mới không có ảnh thì tự dùng màu nền theme
 Tokyo Night, không cần làm gì.
-
-### Không có Hibernate
-
-Máy chỉ có **zram** (swap trong RAM) — tắt máy là mất hết, nên hibernate
-vô nghĩa. Muốn thêm:
-
-```bash
-sudo fallocate -l 8G /swapfile && sudo chmod 600 /swapfile
-sudo mkswap /swapfile && sudo swapon /swapfile
-echo '/swapfile none swap defaults 0 0' | sudo tee -a /etc/fstab
-```
-
-rồi thêm `resume` vào `HOOKS` trong `/etc/mkinitcpio.conf` và
-`resume=UUID=$(blkid -s UUID -o value /swapfile)` vào
-`/etc/kernel/cmdline`. Cần swap ≥ RAM. Sau đó thêm lại mục Hibernate vào
-`power-menu`.
 
 ---
 

@@ -26,6 +26,15 @@ file
 stow                   # ★ cơ chế cài dotfiles
 base                   # nền, tương lai cần cho script
 
+# ── AppImage & .desktop ────────────────────────────────────
+# fuse2: AppImage loại 2 cần libfuse.so.2. ⛔ Thiếu nó thì RemNote mở ra
+#        báo "dlopen(): error loading libfuse.so.2". KHÔNG mặc định có:
+#        Arch tách fuse2 (thư viện 2.x) và fuse3 (3.x) thành hai gói riêng.
+# desktop-file-utils: cho lệnh update-desktop-database. Không có nó thì
+#        launcher không thấy app .desktop mới cho tới lần đăng nhập sau.
+fuse2
+desktop-file-utils
+
 # ── Sway + thanh trạng thái + terminal ──────────────────────
 sway
 swaylock

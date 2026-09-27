@@ -7,6 +7,15 @@
 #
 # Sau khi sửa:  sudo mkinitcpio -P && sudo kernel-install add-all "$(uname -r)"
 
-# deep sleep (suspend-to-RAM) tiết kiệm pin hơn s2idle rất nhiều trên
-# laptop — chỉ dùng được nếu máy đã vào suspend-to-RAM thật.
+# deep sleep = suspend-to-RAM. Tiết kiệm pin hơn s2idle rất nhiều trên
+# laptop, và là thứ giữ cho thao tác "đóng nắp → mở nắp là vào thẳng app"
+# tức thì. Ở đây KHÔNG có swap trên đĩa, nên deep là chế độ ngủ duy nhất
+# khả dụng — và cũng là đủ dùng.
+#
+# ⚠️ Không phải máy nào cũng được: firmware phải hỗ trợ s2idle, nếu không
+#    kernel sẽ im lặng rơi về s2idle. Kiểm tra sau khi boot:
+#        cat /sys/power/mem_sleep
+#    → in "s2idle" nghĩa là `deep` bị bỏ qua (firmware không hỗ trợ) và
+#    pin sẽ tụt nhanh hơn bạn mong đợi. Nhiều laptop thật sự không hỗ trợ
+#    deep cho tới khi kernel ≥ 5.x mới bắt đầu dùng được cho phần lớn.
 mem_sleep_default=deep

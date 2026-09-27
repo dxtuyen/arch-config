@@ -7,6 +7,20 @@
 # ⭐ `before-sleep` / `after-resume` còn gọi `study sleep-pause` /
 #    `sleep-resume`: timer Focus dùng wall-clock nên phải tạm dừng khi
 #    máy ngủ, nếu không thì đi hết giờ trong lúc ngủ.
+#
+#    Hai hook này bắn theo tín hiệu PrepareForSleep của logind, nên chạy
+#    với MỌI kiểu ngủ — kể cả đóng nắp (logind tự quyết), không chỉ khi
+#    chính swayidle kích hoạt.
+#
+# ⭐ SS_SLEEP_HOOK=1 bắt buộc: study sleep-pause gọi lại chính
+#    systemctl --user swayidle. Nếu hook không tự bảo vệ, và bạn đang bật
+#    chống idle bằng tay, nó sẽ `stop` swayidle giữa lúc đang chạy →
+#    swayidle chết sạch, Restart=on-failure không bật lại → after-resume
+#    không chạy → phiên Focus mất. Xem giải thích trong `study`.
+#
+# ⚠️ before-sleep chỉ được trì hoãn ngủ tới `InhibitDelayMaxSec` trong
+#    logind.conf (mặc định 5s). lock-screen và study chạy tổng <100ms
+#    nên thoải mái — nhưng đừng thêm lệnh chậm vào đây.
 
 [Unit]
 Description=Idle manager for Wayland (lock → screen off → suspend)
@@ -22,8 +36,8 @@ ExecStart=/usr/bin/swayidle \
   timeout 310 'swaymsg "output * power off"' \
   resume 'swaymsg "output * power on"' \
   timeout 900 '%h/.local/bin/idle-suspend' \
-  before-sleep '%h/.local/bin/lock-screen; %h/.local/bin/study sleep-pause' \
-  after-resume '%h/.local/bin/study sleep-resume; swaymsg "output * power on"' \
+  before-sleep 'SS_SLEEP_HOOK=1 %h/.local/bin/lock-screen; SS_SLEEP_HOOK=1 %h/.local/bin/study sleep-pause' \
+  after-resume 'SS_SLEEP_HOOK=1 %h/.local/bin/study sleep-resume; swaymsg "output * power on"' \
   lock '%h/.local/bin/lock-screen' \
   unlock 'swaymsg "output * power on"'
 Restart=on-failure

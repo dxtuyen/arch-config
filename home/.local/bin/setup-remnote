@@ -1,58 +1,158 @@
 #!/usr/bin/env bash
-# Cài RemNote từ AppImage đã tải về ~/Downloads.
-#
-# RemNote KHÔNG có trong kho Arch → dùng AppImage. Trên Arch (FUSE2 đã
-# có sẵn trong `fuse2`) chỉ cần chmod +x rồi chạy thẳng, KHÔNG cần
-# appimage-run như trên NixOS.
-#
-#   1. tải RemNote-<phiên bản>.AppImage về ~/Downloads
+# Cài RemNote từ AppImage đã tải về ~/Downloads:
+#   1. tải RemNote*.AppImage về ~/Downloads
 #   2. setup-remnote
 #   3. RemNote xuất hiện trong launcher (Super+D)
+#
+#  ⛔ BẮT BUỘC: gói `fuse2` phải được cài.
+#    AppImage loại 2 (cần libfuse.so.2) sẽ chết ngay khi mở:
+#        dlopen(): error loading libfuse.so.2
+#    Nó nằm trong packages/official.txt. Lỗi này RẤT DỄ GIAO — script
+#    này vẫn chạy và in "Đã cài icon" (vì --appimage-extract do runtime
+#    xử lý TRƯỚC bước mount, không cần FUSE), chỉ tới lúc bấm icon trong
+#    launcher mới lỗi. Gói fuse2 nằm ngay trong danh sách cài.
+#
+#  ─────────────────────────────────────────────────────────────
+#  ⚠️ File .desktop KHÔNG do script này tự viết — mà lấy chính file
+#  .desktop CÓ SẴN BÊN TRONG AppImage, do tác giả RemNote soạn: đúng
+#  Exec, Icon, Categories, MimeType, StartupWMClass. Viết tay dễ sai
+#  và lệch mỗi khi app cập nhật.
 set -euo pipefail
 
 downloads="${HOME}/Downloads"
 apps_dir="${HOME}/Apps/RemNote"
 target="${apps_dir}/RemNote.AppImage"
 
-mkdir -p "$apps_dir"
-
-# File mới nhất trong ~/Downloads (theo thời gian sửa).
-latest="$(find "$downloads" -maxdepth 1 -name 'RemNote-*.AppImage' -printf '%T@ %p\n' 2>/dev/null \
-  | sort -nr | head -n1 | cut -d' ' -f2- || true)"
+# Phân tách trường bằng TAB (không phải khoảng trắng): tên thư mục trong
+# ~/Downloads có thể chứa khoảng trắng → cut -d' ' sẽ cắt sai tên file.
+latest="$(find "$downloads" -maxdepth 1 -name 'RemNote*.AppImage' \
+  -printf '%T@\t%p\n' 2>/dev/null | sort -nr | head -n1 | cut -f2- || true)"
 
 if [ -z "$latest" ]; then
-  echo "Không thấy file RemNote-*.AppImage trong ${downloads}." >&2
-  echo "Hãy tải RemNote về ${downloads} rồi chạy lại lệnh này." >&2
+  cat >&2 <<EOF
+Không thấy file RemNote*.AppImage trong ${downloads}.
+
+Hãy tải RemNote về ${downloads} rồi chạy lại lệnh này.
+Tên file KHÔNG bắt buộc phải là RemNote-<phiên bản>.AppImage, chỉ cần
+kết thúc bằng .AppImage và bắt đầu bằng "RemNote" là được.
+EOF
   exit 1
 fi
 
-if [ ! -f "$latest" ] || [ ! -s "$latest" ]; then
-  echo "Lỗi: File '$latest' không hợp lệ (không phải file hoặc rỗng)." >&2
+if [ ! -s "$latest" ]; then
+  echo "Lỗi: '$latest' rỗng hoặc không phải file." >&2
   exit 1
 fi
 
-# Luôn đè bản cũ (không so hash).
+mkdir -p "$apps_dir"
+# Luôn đè bản cũ (không so hash) — luôn mới nhất trong Downloads thắng.
 mv -f "$latest" "$target"
 chmod +x "$target"
 echo "Đã cài RemNote: $target"
 
-# Trích icon từ AppImage ra ~/.local/share/icons.
-# Bắt buộc vì AppImage chỉ đặt icon ở thư mục size KHÔNG chuẩn
-# (hicolor/0x0) — GTK chỉ đọc 16/24/32/48/64/128/256/512 nên copy nguyên
-# thư mục cũng không hiện icon trong launcher.
-icon_dir="${HOME}/.local/share/icons/hicolor/512x512/apps"
-icon_file="${icon_dir}/remnote.png"
-icon_in_appimage='usr/share/icons/hicolor/0x0/apps/remnote.png'
-
+apps="${HOME}/.local/share/applications"
+icons="${HOME}/.local/share/icons"
 tmp="$(mktemp -d)"
-if (cd "$tmp" && "$target" --appimage-extract "$icon_in_appimage" >/dev/null 2>&1) \
-   && [ -f "$tmp/squashfs-root/$icon_in_appimage" ]; then
-  mkdir -p "$icon_dir"
-  install -m 644 "$tmp/squashfs-root/$icon_in_appimage" "$icon_file"
-  echo "Đã cài icon: $icon_file"
-else
-  # AppImage đổi cấu trúc bên trong → bỏ qua, app vẫn chạy bình thường.
-  echo "Cảnh báo: không tìm thấy icon '$icon_in_appimage' trong AppImage." >&2
-  echo "Launcher có thể hiện RemNote không icon." >&2
+trap 'rm -rf "$tmp"' EXIT
+
+# --appimage-extract KHÔNG cần FUSE: AppImage runtime xử lý trước bước
+# mount. Giải nén toàn bộ AppDir ra squashfs-root/.
+if ! (cd "$tmp" && "$target" --appimage-extract >/dev/null 2>&1); then
+  echo "Cảnh báo: không giải nén được AppImage (file tải về bị thiếu/hỏng?" >&2
+  echo "Mở launcher sẽ KHÔNG thấy RemNote. Xoá $downloads và tải lại." >&2
+  exit 1
 fi
-rm -rf "$tmp"
+root="$tmp/squashfs-root"
+
+# ── 1. Lấy .desktop của chính app ───────────────────────────
+desktop_src="$(find "$root" -name '*.desktop' -path '*/applications/*' | head -1 || true)"
+if [ -z "$desktop_src" ]; then
+  echo "Cảnh báo: AppImage không có file .desktop nào." >&2
+  echo "Tự tạo entry tối thiểu — launcher sẽ KHÔNG có icon." >&2
+  mkdir -p "$apps"
+  cat > "$apps/remnote.desktop" <<EOF
+[Desktop Entry]
+Type=Application
+Name=RemNote
+Comment=RemNote note-taking app
+Exec=$target %U
+Terminal=false
+Categories=Office;Utility
+EOF
+else
+  # Không đoán tên file — RemNote đổi tên thì file trong AppImage cũng
+  # đổi theo.
+  desktop_name="$(basename -- "$desktop_src")"
+  echo "Lấy entry gốc: $desktop_name"
+  mkdir -p "$apps"
+
+  # Exec trong .desktop gốc là TƯƠNG ĐỐI ("AppRun %U" hoặc
+  # "remnote.AppImage %U") — phải trỏ về đường dẫn tuyệt đối, nếu
+  # không Rofi sẽ loại entry vì không tìm thấy binary.
+  sed -E "s|^Exec=.*|Exec=$target %U|" "$desktop_src" > "$apps/$desktop_name"
+  chmod 644 "$apps/$desktop_name"
+fi
+
+# ── 2. Tìm icon ────────────────────────────────────────────
+# ⭐ Icon CÓ SẪN bên trong AppImage, chỉ là nằm ở thư mục size KHÔNG
+#   chuẩn (thường là hicolor/0x0). Chuẩn freedesktop chỉ định 48/64/128/
+#   256/512 và "scalable" — GTK tra theo đúng các size đó nên "0x0" bị
+#   trượt và icon không hiện. Cách sửa: copy sang 512x512.
+#
+#   KHÔNG đoán đường dẫn: lấy tên icon từ chính dòng Icon= trong
+#   .desktop rồi glob theo tên đó. RemNote đổi cấu trúc bên trong thì
+#   vẫn tìm thấy, thay vì im lặng mất icon.
+icon_name=""
+[ -n "$desktop_src" ] && icon_name="$(grep -m1 '^Icon=' "$desktop_src" | cut -d= -f2- | tr -d '[:space:]' || true)"
+
+icon_src=""
+if [ -n "$icon_name" ]; then
+  icon_src="$(find "$root" -path '*/icons/*' -type f \
+    \( -iname "$icon_name.png" -o -iname "$icon_name.svg" -o -iname "$icon_name.xpm" \) \
+    | head -1 || true)"
+fi
+# Không tìm được thì thử quét mọi png/svg trong thư mục icon.
+if [ -z "$icon_src" ]; then
+  icon_src="$(find "$root" -path '*/icons/*' -type f \
+    \( -iname '*.png' -o -iname '*.svg' \) | head -1 || true)"
+fi
+
+if [ -n "$icon_src" ]; then
+  base="${icon_name:-remnote}"
+  ext="${icon_src##*.}"          # giữ đúng phần mở rộng
+  dest_dir="$icons/hicolor/512x512/apps"
+  mkdir -p "$dest_dir"
+  install -m 644 "$icon_src" "$dest_dir/$base.$ext"
+  # Dùng đường dẫn TUYỰT ĐỐI trong .desktop: Rofi loại bỏ entry khi
+  # không tìm thấy icon. Ô nhận biết tên theme, nên nếu app đã có icon
+  # trong theme thì bỏ trống cũng được — đường dẫn tuyệt đối chắc hơn.
+  for d in "$apps"/*.desktop; do
+    [ -e "$d" ] || continue
+    # `Icon=` gốc là TÊN theme, không phải đường dẫn → thay bằng tuyệt đối.
+    if grep -q '^Icon=' "$d"; then
+      sed -i "s|^Icon=.*|Icon=$dest_dir/$base.$ext|" "$d"
+    else
+      sed -i "0,/^Name=/s||Name=RemNote\\nIcon=$dest_dir/$base.$ext\\nName=|" "$d"
+    fi
+  done
+  echo "Đã cài icon: $dest_dir/$base.$ext"
+  command -v gtk-update-icon-cache >/dev/null 2>&1 \
+    && gtk-update-icon-cache -qtf "$icons/hicolor" 2>/dev/null || true
+else
+  echo "Cảnh báo: AppImage không có icon dạng png/svg." >&2
+  echo "RemNote vẫn chạy, launcher sẽ hiện không icon." >&2
+fi
+
+# ── 3. Cập nhật cache .desktop ──────────────────────────────
+# Không có lệnh này thì launcher không thấy entry mới cho tới lần
+# đăng nhập sau (thực tế có thể không thấy luôn).
+if command -v update-desktop-database >/dev/null 2>&1; then
+  update-desktop-database "$apps"
+  echo "Đã cập nhật cache .desktop"
+else
+  echo "Cảnh báo: thiếu gói desktop-file-utils → launcher có thể không" >&2
+  echo "thấy RemNote. Cài bằng: sudo pacman -S desktop-file-utils" >&2
+fi
+
+echo
+echo "Xong. Mở launcher (Super+D) và gõ RemNote."
