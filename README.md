@@ -52,8 +52,14 @@ arch-config/
 │   ├── kernel/cmdline · mkinitcpio.conf · locale.conf
 │   └── pacman.d/mirrorlist · sudoers.d/wheel
 ├── usr/local/bin/          # stow → /usr/local/bin
-└── lockscreen/
+└── lockscreen/lockscreen.png
 ```
+
+> **Ảnh khoá màn hình:** `lockscreen/lockscreen.png` (3840×2160) lấy từ
+> [f4dzN/archlinux-wallpapers](https://github.com/f4dzN/archlinux-wallpapers)
+> — MIT, © 2025 f4dzn. Bản gốc kèm license ở
+> `lockscreen/LICENSE-wallpaper.txt`. Muốn đổi thì thay file, không
+> cần sửa gì thêm.
 
 **Cơ chế:** file trong repo được `stow` thành symlink ở đích. Sửa ở đâu
 cũng được — sửa trong repo thì có version control, sửa ở `~` cũng được

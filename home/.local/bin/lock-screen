@@ -13,10 +13,13 @@ fi
 # của stow để lấy đường dẫn thật.
 self="$(readlink -f "${BASH_SOURCE[0]}")"
 repo="$(dirname "$(dirname "$(dirname "$(dirname "$self")")")")"
-image="$repo/lockscreen/lockscreen.jpg"
+# Ưu tiên PNG, fallback về JPEG — đổi phần mở rộng ở đây là xong.
+for image in "$repo/lockscreen/lockscreen.png" "$repo/lockscreen/lockscreen.jpg"; do
+  [ -f "$image" ] && break
+done
 
 if [ ! -f "$image" ]; then
-  printf 'lock-screen: không thấy ảnh %s\n' "$image" >&2
+  printf 'lock-screen: không thấy ảnh trong %s/lockscreen/\n' "$repo" >&2
   exit 1
 fi
 

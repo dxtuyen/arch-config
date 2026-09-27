@@ -1,0 +1,26 @@
+# Git KHÔNG nên đụng vào ảnh: mặc định nó cứ thử "sửa" file nhị phân
+# (nén/thoại) trong lúc diff, làm ảnh hỏng mà không có lỗi nào hiện ra.
+*.png    binary
+*.jpg    binary
+*.jpeg   binary
+*.webp   binary
+*.gif    binary
+*.pdf    binary
+*.woff2  binary
+*.ico    binary
+
+# Script và file cấu hình: luôn LF trong repo, kể cả khi làm việc trên
+# Windows. Thiếu dòng này thì checkout trên Windows sẽ để lại CRLF, và
+# script bash sẽ báo `$'\r': command not found` mà rất khó đoán.
+*.sh        text eol=lf
+install.sh  text eol=lf
+*.bashrc    text eol=lf
+*.service   text eol=lf
+*.conf      text eol=lf
+*.toml      text eol=lf
+*.json      text eol=lf
+*.jsonc     text eol=lf
+
+# Ảnh chữ vẽ bằng Inkscape: coi như text để diff thấy được, nhưng vẫn
+# tôn trọng CRLF bên trong file SVG.
+*.svg   text

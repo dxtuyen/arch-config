@@ -93,14 +93,40 @@ if [ -e /etc/sudoers.d/wheel ]; then
   fi
 fi
 
-# ── 3. Thư mục dữ liệu người dùng ──────────────────────────
+# ── 3. Sinh ~/.config/environment.d từ session-env.sh ───────
+# ⭐ Nguồn SỰ THẬT chỉ có MỘT: config/session-env.sh.
+#
+# Cùng một lý do biến môi trường phải tồn tại ở hai nơi:
+#   · app Sway mở ra          → đọc ~/.config/session-env.sh
+#   · app qua systemd service → đọc ~/.config/environment.d/*.conf
+# Trước đây 5 biến bị viết tay 2 lần, nghĩa là sửa 1 biến ở chỗ này mà
+# quên chỗ kia → app launch từ launcher ra IME không hoạt động, mà không
+# có báo lỗi nào. Giờ file .conf được SINH RA từ file .sh: sửa 1 chỗ.
+step "Sinh environment.d từ session-env.sh"
+mkdir -p "$HOME/.config/environment.d"
+# `export FOO=bar` → `FOO=bar`; bỏ dòng trống, giữ dòng comment của file .sh
+sed -nE 's/^[[:space:]]*export[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)=(.*)$/\1=\2/p' \
+  "$REPO/config/session-env.sh" > "$HOME/.config/environment.d/10-session.conf"
+
+env_count="$(grep -c . "$HOME/.config/environment.d/10-session.conf" || true)"
+if [ "$env_count" -gt 0 ]; then
+  info "environment.d/10-session.conf — $env_count biến"
+else
+  warn "Không sinh được biến nào — app chạy qua systemd service sẽ thiếu IME."
+fi
+
+# Đọc biến mới cho các service ĐANG CHẠY (environment.d chỉ có hiệu lực
+# khi systemd --user đọc lại, tức lần đăng nhập sau).
+systemctl --user daemon-reexec 2>/dev/null || true
+
+# ── 4. Thư mục dữ liệu người dùng ──────────────────────────
 step "Tạo thư mục dữ liệu"
 mkdir -p "$HOME/Pictures/wallpapers" "$HOME/Pictures/Screenshots" "$HOME/Books"
 mkdir -p "$HOME/.config/quick-lang"
 chmod 700 "$HOME/.config/quick-lang"
 info "~/Pictures/{wallpapers,Screenshots}  ~/Books  ~/.config/quick-lang (đặt api.key ở đây)"
 
-# ── 4. Plugin yazi ──────────────────────────────────────────
+# ── 5. Plugin yazi ──────────────────────────────────────────
 # smart-enter: <Enter> rẽ nhánh — thư mục thì đi vào, file thì mở app.
 # Không có nó, preset của yazi mở nvim khi bấm <Enter> vào THƯ MỤC.
 step "Cài plugin yazi (smart-enter)"
@@ -115,7 +141,7 @@ else
 fi
 
 
-# ── 5. Ứng dụng AppImage ───────────────────────────────────
+# ── 6. Ứng dụng AppImage ───────────────────────────────────
 # ⛔ KHÔNG sinh file .desktop cho RemNote ở đây. File .desktop của
 #    RemNote nằm BÊN TRONG AppImage, do tác giả app viết (đúng Exec, Icon,
 #    Categories, MimeType). Viết tay thì dễ sai và lệch mỗi lần app cập
@@ -124,7 +150,7 @@ fi
 #    Trước khi bạn tải AppImage thì launcher không có RemNote. Đúng như
 #    mong đợi, không phải lỗi.
 
-# ── 6. Locale ──────────────────────────────────────────────
+# ── 7. Locale ──────────────────────────────────────────────
 step "Sinh locale"
 if ! locale -a 2>/dev/null | grep -qix 'en_US.utf8'; then
   sudo sed -i 's/^#\(en_US.UTF-8\)/\1/' /etc/locale.gen
@@ -133,7 +159,7 @@ else
   info "đã có"
 fi
 
-# ── 7. Dịch vụ hệ thống ────────────────────────────────────
+# ── 8. Dịch vụ hệ thống ────────────────────────────────────
 step "Bật dịch vụ hệ thống"
 for svc in earlyoom keyd greetd fwupd; do
   sudo systemctl enable --now "$svc" 2>/dev/null && info "$svc" || warn "$svc: bật không được"
@@ -148,7 +174,7 @@ sudo systemctl enable battery-threshold.service 2>/dev/null \
   && info "battery-threshold.service" \
   || warn "battery-threshold: chưa thấy /usr/local/bin/set-battery-threshold"
 
-# ── 8. Dịch vụ người dùng ──────────────────────────────────
+# ── 9. Dịch vụ người dùng ──────────────────────────────────
 step "Bật dịch vụ người dùng"
 systemctl --user daemon-reload
 
@@ -168,7 +194,7 @@ systemctl --user enable wallpaper-init.service 2>/dev/null \
 # Timer phải chạy cả khi đã logout (máy ngủ). Bật linger cho user.
 loginctl enable-linger "$USER" 2>/dev/null && info "linger: bật" || true
 
-# ── 9. Kiểm tra ────────────────────────────────────────────
+# ── 10. Kiểm tra ────────────────────────────────────────────
 step "Kiểm tra"
 miss=0
 for c in sway swaymsg swaylock swayidle waybar foot mako rofi wlsunset awww fcitx5 \
@@ -181,7 +207,7 @@ if [ ! -f /usr/lib/systemd/user/sway-session.target ]; then
   warn "Kiểm tra lại gói 'sway' đã được cài đúng chưa."
 fi
 
-# ── 10. Git identity ────────────────────────────────────────
+# ── 11. Git identity ────────────────────────────────────────
 step "Git identity"
 if git config --global user.email >/dev/null 2>&1; then
   info "đã có: $(git config --global user.email)"
@@ -195,7 +221,7 @@ else
   info "  git config --global user.email 'a@b.c'"
 fi
 
-# ── 11. Gợi ý cuối ─────────────────────────────────────────
+# ── 12. Gợi ý cuối ─────────────────────────────────────────
 printf '\n%s✔ Xong.%s\n' "$C_G" "$C_0"
 [ "$miss" -eq 1 ] && printf '%s  Còn thiếu gói ở trên — chạy lại ./install.sh khi có mạng.%s\n' "$C_Y" "$C_0"
 

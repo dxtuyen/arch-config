@@ -1,13 +1,15 @@
 # ══════════════════════════════════════════════════════════════
 #  Biến môi trường cho phiên Sway
 #
-#  Nạp bởi greetd (`sh -c '. ~/.config/session-env.sh; exec sway'`).
-#  Mọi app Sway mở ra đều kế thừa các biến này. Đổi xong thì
-#  Super+Shift+C để nạp lại, hoặc logout/login lại.
+#  ⭐ ĐÂY LÀ NGUỒN DUY NHẤT. Không tự viết thêm ở đâu khác.
+#  install.sh đọc file này rồi SINH RA ~/.config/environment.d/
+#  cho các app chạy qua systemd user service (swayidle, awww, fcitx5).
+#  Sửa biến ở đây, chạy lại ./install.sh là xong — không có chuyện
+#  sửa một nơi, quên chỗ kia.
 #
-#  App mở qua SYSTEMD USER SERVICE thì không thừa hưởng biến ở đây —
-#  những app đó lấy biến từ ~/.config/environment.d/ (giữ hai nơi
-#  đồng bộ).
+#  Nạp bởi greetd (`sh -c '. ~/.config/session-env.sh; exec sway'`).
+#  App Sway mở ra đều kế thừa các biến này. Đổi xong thì
+#  Super+Shift+C để nạp lại, hoặc logout/login lại.
 # ══════════════════════════════════════════════════════════════
 
 # ── Fcitx5 (bộ gõ) ─────────────────────────────────────────

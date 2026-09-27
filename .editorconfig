@@ -1,0 +1,27 @@
+# Nhất quán khoảng trắng cho mọi editor/IDE mở repo này.
+# Không có file này thì mỗi người một kiểu, và `git diff` nhiễu hàng
+# trắng thừa không liên quan tới nội dung thay đổi.
+
+root = true
+
+[*]
+charset = utf-8
+end_of_line = lf          # script bash + file cấu hình KHÔNG được CRLF
+insert_final_newline = true
+trim_trailing_whitespace = true
+indent_style = space
+indent_size = 2
+
+[*.{sh,bash}]
+indent_size = 2
+
+[*.py]
+indent_size = 4
+
+[Makefile]
+indent_style = tab        # make BẮT BUỘC tab, không dùng được space
+
+# Ảnh: không trim, không chỉnh cuối dòng
+[*.{png,jpg,jpeg,gif,webp}]
+insert_final_newline = unset
+trim_trailing_whitespace = unset

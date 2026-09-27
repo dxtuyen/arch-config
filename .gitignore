@@ -2,6 +2,11 @@
 # Kết quả symlink của stow (đã có trong .gitignore tương lai)
 *.stow-backup
 
+# File SINH RA, không viết tay. Nguồn duy nhất là config/session-env.sh
+# — install.sh sinh ra file này. Commit vào sẽ thành 2 nơi phải đồng
+# bộ, đúng thứ ta vừa bỏ.
+config/environment.d/
+
 # Secret
 config/quick-lang/
 *.key
@@ -22,3 +27,5 @@ VMs/
 .DS_Store
 result
 result-*
+.vim/
+nvim.log
