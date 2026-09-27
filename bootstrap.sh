@@ -54,8 +54,7 @@ step "Kiểm tra phân vùng"
 if ! mountpoint -q "$TARGET"; then
   cat >&2 <<EOF
 
-${C_X}Chưa mount $TARGET. Phân vùng là phần DUY NHẤT script không tự làm,${C_R}
-${C_D}vì xoá nhầm thì mất sạch ổ cứng và không có cách gỡ.${C_R}
+${C_X}Chưa mount $TARGET. Phân vùng là phần DUY NHẤT script không tự làm,${C_R}${C_D}vì xoá nhầm thì mất sạch ổ cứng và không có cách gỡ.${C_R}
 
   cfdisk /dev/nvme0n1
     • 1 GiB   →  EFI System        (phân vùng 1)
@@ -73,14 +72,14 @@ EOF
 fi
 
 esp_dev="$(findmnt -n -o SOURCE "$TARGET/boot" 2>/dev/null || true)"
-[[ -n $esp_dev ]] || die "$TARGET/boot chưa mount. ESP phải mount ở đây,
+[[ -n $esp_dev ]] \vert{}\vert{} die "$TARGET/boot chưa mount. ESP phải mount ở đây,
   nếu không bootctl sẽ cài sai chỗ. Chạy:
     mount --mkdir /dev/nvme0n1p1 $TARGET/boot"
 
 root_dev="$(findmnt -n -o SOURCE "$TARGET")"
 root_uuid="$(blkid -s UUID -o value "$root_dev")"
 esp_uuid="$(blkid -s UUID -o value "$esp_dev")"
-[[ -n $root_uuid && -n $esp_uuid ]] || die "Không đọc được UUID — kiểm tra phân vùng."
+[[ -n $root_uuid && -n$esp_uuid ]] || die "Không đọc được UUID — kiểm tra phân vùng."
 
 ok "root  $root_dev  UUID=$root_uuid"
 ok "boot  $esp_dev  UUID=$esp_uuid"
@@ -96,6 +95,13 @@ read -r reply
 step "Cài gói nền (pacstrap)"
 
 # ⛔ intel-ucode: BẮT BUỘC trên CPU Intel, thiếu thì kernel CÓ THỂ
+#    không khởi động. Không có trong danh sách mặc định của archinstall.
+# ⛔ sudo + git: KHÔNG nằm trong `base`. Thiếu sudo thì không làm được
+#    gì; thiếu git thì không clone được dotfiles.
+pacstrap -K "$TARGET" \
+  base linux linux-firmware systemd mkinitcpio \
+  sudo git efibootmgr intel-ucode
+ok "base + linux + sudo + git + efibootmgr + intel-ucode"
 
 # ══ 4. Cấu hình trong chroot ═══════════════════════════════════
 step "Cấu hình hệ thống trong chroot"
@@ -157,17 +163,6 @@ wifi.cloned-mac-address=stable
 NMCONF
 systemctl enable systemd-resolved.service
 ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
-
-# ⛔ THIẾU FILE NÀY THÌ MÁY KHÔNG CÓ WIFI (iwd + NetworkManager
-#    không tự sinh).
-mkdir -p /etc/systemd/network
-cat > /etc/systemd/network/20-wifi.network <<'WIFI'
-[Match]
-Name=wlan0 wlp*
-[Network]
-DHCP=yes
-IPv6AcceptRA=yes
-WIFI
 CHROOT
 ok "múi giờ · locale · fstab · user · NetworkManager + iwd"
 
@@ -244,16 +239,7 @@ cat <<EOF
 
   ${C_B}Làm sau reboot${C_R}
     passwd
-    ${C_Y}Mật khẩu nằm trong script + lịch sử git — đổi ngay.${C_R}
-    ${C_Y}Đổi cả API key Gemini: aistudio.google.com/apikey${C_R}
+    ${C_Y}Mật khẩu nằm trong script + lịch sử git — đổi ngay.${C_R}${C_Y}Đổi cả API key Gemini: aistudio.google.com/apikey${C_R}
 
 EOF
 printf '  %sRút USB rồi mới reboot.%s\n\n' "$C_Y" "$C_R"
-
-#    không khởi động. Không có trong danh sách mặc định của archinstall.
-# ⛔ sudo + git: KHÔNG nằm trong `base`. Thiếu sudo thì không làm được
-#    gì; thiếu git thì không clone được dotfiles.
-pacstrap -K "$TARGET" \
-  base linux linux-firmware systemd mkinitcpio \
-  sudo git efibootmgr intel-ucode
-ok "base + linux + sudo + git + efibootmgr + intel-ucode"
