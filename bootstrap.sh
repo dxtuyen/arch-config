@@ -5,19 +5,6 @@
 #  Chạy trong live shell (đã boot từ USB, đã vào mạng):
 #      git clone https://github.com/dxtuyen/arch-config.git
 #      sudo arch-config/bootstrap.sh
-#
-#  ── Vì sao không dùng archinstall của Arch? ─────────────────
-#  Đã đọc schema.json của nó: 18 trường, KHÔNG có `kernel_params`,
-#  không có `hibernate`/`swap`. Nó cũng không cài `intel-ucode`, `git`,
-#  `efibootmgr`, và mặc định cài LightDM chứ không greetd.
-#
-#  Điểm quyết định: deep sleep cần đúng THỨ TỰ —
-#      stow etc/kernel/cmdline → mkinitcpio -P → bootctl install
-#  `archinstall` không cho kiểm soát thứ tự. Sai là máy không boot.
-#
-#  ── Phần CỐ Ý làm tay, script KHÔNG tự động ──────────────────
-#  Phân vùng. Xoá nhầm thì mất sạch ổ cứng, không có cách gỡ.
-#  Script chỉ kiểm tra $TARGET ĐÃ có phân vùng đúng rồi mới làm tiếp.
 # ══════════════════════════════════════════════════════════════
 
 set -euo pipefail
@@ -54,7 +41,8 @@ step "Kiểm tra phân vùng"
 if ! mountpoint -q "$TARGET"; then
   cat >&2 <<EOF
 
-${C_X}Chưa mount $TARGET. Phân vùng là phần DUY NHẤT script không tự làm,${C_R}${C_D}vì xoá nhầm thì mất sạch ổ cứng và không có cách gỡ.${C_R}
+${C_X}Chưa mount $TARGET. Phân vùng là phần DUY NHẤT script không tự làm,${C_R}
+${C_D}vì xoá nhầm thì mất sạch ổ cứng và không có cách gỡ.${C_R}
 
   cfdisk /dev/nvme0n1
     • 1 GiB   →  EFI System        (phân vùng 1)
@@ -72,14 +60,14 @@ EOF
 fi
 
 esp_dev="$(findmnt -n -o SOURCE "$TARGET/boot" 2>/dev/null || true)"
-[[ -n $esp_dev ]] \vert{}\vert{} die "$TARGET/boot chưa mount. ESP phải mount ở đây,
+[[ -n $esp_dev ]] || die "$TARGET/boot chưa mount. ESP phải mount ở đây,
   nếu không bootctl sẽ cài sai chỗ. Chạy:
     mount --mkdir /dev/nvme0n1p1 $TARGET/boot"
 
 root_dev="$(findmnt -n -o SOURCE "$TARGET")"
 root_uuid="$(blkid -s UUID -o value "$root_dev")"
 esp_uuid="$(blkid -s UUID -o value "$esp_dev")"
-[[ -n $root_uuid && -n$esp_uuid ]] || die "Không đọc được UUID — kiểm tra phân vùng."
+[[ -n $root_uuid && -n $esp_uuid ]] || die "Không đọc được UUID — kiểm tra phân vùng."
 
 ok "root  $root_dev  UUID=$root_uuid"
 ok "boot  $esp_dev  UUID=$esp_uuid"
@@ -94,10 +82,6 @@ read -r reply
 # ══ 3. pacstrap ═══════════════════════════════════════════════
 step "Cài gói nền (pacstrap)"
 
-# ⛔ intel-ucode: BẮT BUỘC trên CPU Intel, thiếu thì kernel CÓ THỂ
-#    không khởi động. Không có trong danh sách mặc định của archinstall.
-# ⛔ sudo + git: KHÔNG nằm trong `base`. Thiếu sudo thì không làm được
-#    gì; thiếu git thì không clone được dotfiles.
 pacstrap -K "$TARGET" \
   base linux linux-firmware systemd mkinitcpio \
   sudo git efibootmgr intel-ucode
@@ -112,8 +96,6 @@ export DEBIAN_FRONTEND=noninteractive
 pacman-key --init
 pacman-key --populate archlinux
 
-# Mirror: geo.mirror tự chọn máy chủ gần nhất. Ưu tiên bản trong repo
-# để lần cài sau giống hệt.
 if [ -f '$REPO/etc/pacman.d/mirrorlist' ]; then
   cp '$REPO/etc/pacman.d/mirrorlist' /etc/pacman.d/mirrorlist
 else
@@ -130,27 +112,20 @@ printf 'LANG=%s\n' '$LOCALE' > /etc/locale.conf
 printf 'KEYMAP=us\n' > /etc/vconsole.conf
 printf '%s\n' '$HOSTNAME' > /etc/hostname
 
-# fstab BẮT BUỘC dùng UUID: tên /dev/sdX không ổn định giữa các lần
-# boot, dùng nó thì có lần không mount được root. Đọc UUID THẬT từ
-# phân vùng đang mount, không hardcode.
 {
   printf 'UUID=%s / ext4 defaults,noatime 0 1\n' '$root_uuid'
   printf 'UUID=%s /boot vfat defaults,fmask=0077,dmask=0077 0 2\n' '$esp_uuid'
 } > /etc/fstab
 cat /etc/fstab
 
-useradd -m -G wheel -s /bin/bash '$USER_NAME'
+# Xử lý lỗi useradd nếu chạy lại nhiều lần
+id '$USER_NAME' &>/dev/null || useradd -m -G wheel -s /bin/bash '$USER_NAME'
 printf '%s:%s\n' '$USER_NAME' '$USER_PASS' | chpasswd
 printf 'root:%s\n' '$USER_PASS' | chpasswd
 printf '%%wheel ALL=(ALL:ALL) ALL\n' > /etc/sudoers.d/wheel
-# Stow tạo symlink nhưng KHÔNG giữ quyền → sudo SẼ IM LẶNG bỏ qua
-# file sai quyền, mất sudo mà không có dòng cảnh báo. Đặt 440 ngay.
 chmod 440 /etc/sudoers.d/wheel
 visudo -c -f /etc/sudoers.d/wheel
 
-# ⚠️ KHÔNG dùng systemd-networkd. Dotfiles chạy trên NetworkManager:
-#    sway/config có 'nm-applet', quick-net-reload gọi nmcli. Hai trình
-#    cùng quản lý interface thì rất khó chẩn đoán.
 pacman -S --needed --noconfirm networkmanager iwd
 systemctl enable NetworkManager.service
 mkdir -p /etc/NetworkManager
@@ -162,16 +137,18 @@ wifi.backend=iwd
 wifi.cloned-mac-address=stable
 NMCONF
 systemctl enable systemd-resolved.service
-ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
+
+# Xử lý lỗi symlink nếu chạy lại nhiều lần
+ln -sfn /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf 2>/dev/null || true
 CHROOT
 ok "múi giờ · locale · fstab · user · NetworkManager + iwd"
 
 # ══ 5. Cài dotfiles ════════════════════════════════════════════
 step "Cài dotfiles (git clone + install.sh)"
 
-# Máy mới nên chưa có gì — clone từ GitHub (không dùng SSH: live
-# shell chưa có khoá của bạn).
 arch-chroot "$TARGET" /bin/bash -euo pipefail <<'INNER'
+# Dọn dẹp repo cũ nếu có trước khi clone
+rm -rf /root/arch-config
 git clone https://github.com/dxtuyen/arch-config.git /root/arch-config
 cd /root/arch-config
 chmod +x install.sh bootstrap.sh
@@ -182,12 +159,6 @@ warn "Nhớ copy API key Gemini sang máy mới:"
 warn "  cp <file> ~/.config/quick-lang/ && chmod 600 ~/.config/quick-lang/api.key"
 
 # ══ 6. initramfs rồi mới bootloader ════════════════════════════
-# ⭐ THỨ TỰ NÀY KHÔNG ĐƯỢC ĐẢO:
-#     6.1 /etc/kernel/cmdline đã có (install.sh stow từ repo)
-#     6.2 mkinitcpio -P  → đọc cmdline đó, nhúng vào initramfs
-#     6.3 bootctl install → tạo entry boot
-#   6.2 mà không 6.1 = initramfs không có deep sleep.
-#   6.3 mà không 6.2 = không có entry boot, máy không khởi động.
 step "Tạo initramfs rồi cài bootloader"
 
 arch-chroot "$TARGET" /bin/bash -euo pipefail <<'BOOT'
@@ -235,11 +206,8 @@ cat <<EOF
   ${C_B}Chưa có ảnh nền?${C_R}
     mkdir -p ~/Pictures/wallpapers
     cp -v /đường/dẫn/ảnh/*.png ~/Pictures/wallpapers/ 2>/dev/null
-    ${C_D}Ảnh nằm NGOÀI repo. Chưa có cũng chạy — nền màu 0x1a1b26.${C_R}
 
   ${C_B}Làm sau reboot${C_R}
     passwd
-    ${C_Y}Mật khẩu nằm trong script + lịch sử git — đổi ngay.${C_R}${C_Y}Đổi cả API key Gemini: aistudio.google.com/apikey${C_R}
-
 EOF
 printf '  %sRút USB rồi mới reboot.%s\n\n' "$C_Y" "$C_R"
