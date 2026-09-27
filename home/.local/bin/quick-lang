@@ -12,8 +12,8 @@
 #   [lãy] luật vụ     [kinh tế] [y tế] [tt] [kỹ thuật phần mềm]
 # Tag bị cắt trước khi gửi đi.
 #
-# Key Gemini: ~/.config/quick-lang/api.key (install.sh đã tạo, chmod 700)
-#   hoặc biến môi trường GEMINI_API_KEY.
+# Key Gemini: ~/.config/quick-lang/api.key (quyền 600) — KHÔNG có trong
+#   repo, copy tay từ máy cũ. Hoặc đặt biến môi trường GEMINI_API_KEY.
 # Hết quota (429) → tự fallback Google Translate, không cần gõ phím.
 set -u
 

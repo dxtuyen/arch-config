@@ -122,9 +122,21 @@ systemctl --user daemon-reexec 2>/dev/null || true
 # ── 4. Thư mục dữ liệu người dùng ──────────────────────────
 step "Tạo thư mục dữ liệu"
 mkdir -p "$HOME/Pictures/wallpapers" "$HOME/Pictures/Screenshots" "$HOME/Books"
+
+# API key Gemini — KHÔNG nằm trong repo (repo public, lịch sử git vĩnh
+# viễn). Máy mới thì copy tay 1 lần:
+#     cp /đường/dẫn/ở-máy-cũ/api.key ~/.config/quick-lang/
+# hoặc đặt biến môi trường GEMINI_API_KEY. `quick-lang` đọc cả hai.
 mkdir -p "$HOME/.config/quick-lang"
 chmod 700 "$HOME/.config/quick-lang"
-info "~/Pictures/{wallpapers,Screenshots}  ~/Books  ~/.config/quick-lang (đặt api.key ở đây)"
+if [ -s "$HOME/.config/quick-lang/api.key" ]; then
+  info "api.key (đã có, quyền $(stat -c%a "$HOME/.config/quick-lang/api.key"))"
+else
+  warn "Chưa có API key Gemini → Super+T (dịch) sẽ rơi về Google Translate."
+  warn "  cp <file> ~/.config/quick-lang/api.key && chmod 600 ~/.config/quick-lang/api.key"
+  warn "  hoặc đặt biến môi trường GEMINI_API_KEY."
+fi
+info "~/Pictures/{wallpapers,Screenshots}  ~/Books  ~/.config/quick-lang"
 
 # ── 5. Plugin yazi ──────────────────────────────────────────
 # smart-enter: <Enter> rẽ nhánh — thư mục thì đi vào, file thì mở app.

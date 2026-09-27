@@ -8,6 +8,17 @@
 config/environment.d/
 
 # Secret
+#
+# ⛔ KHÔNG BAO GIỜ commit API key vào đây. Repo này public: ai cũng đọc
+#    được file push lên, và lịch sử git là VĨNH VIỄN — xoá ở commit sau
+#    không gỡ được, phải `git filter-repo` hoặc xoá cả repo.
+#
+#    GitHub có push protection chặn sẵn, nhưng key ĐÃ được gửi lên máy
+#    chủ GitHub để quét dù push bị từ chối → vẫn phải rotate.
+#
+#    Cách đúng: copy tay ~/.config/quick-lang/api.key sang máy mới, hoặc
+#    đặt biến môi trường GEMINI_API_KEY (quick-lang đọc cả hai).
+#    Một lần copy còn hơn lộ key vĩnh viễn.
 config/quick-lang/
 *.key
 *.pem

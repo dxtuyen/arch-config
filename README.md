@@ -4,11 +4,13 @@ Dotfiles cho **Arch Linux + Sway (Wayland)**, theme Tokyo Night.
 Một lệnh cài, một lệnh gỡ. Tái lập lại máy mới trong ~20 phút.
 
 ```bash
-git clone <url-repo> ~/arch-config && cd ~/arch-config && ./install.sh
+git clone https://github.com/dxtuyen/arch-config.git ~/arch-config
+cd ~/arch-config && ./install.sh
 ```
 
-**Cài máy mới từ đầu (từ USB trở đi):** xem [Cài máy mới từ đầu](#cài-máy-mới-từ-đầu) —
-6 bước, có lệnh copy-paste và bảng chẩn đoán sự cố.
+**Cài máy mới từ đầu (từ USB trở đi):** xem
+[Cài máy mới từ đầu](#cài-máy-mới-từ-đầu) — 5 bước, phần cài tay gộp
+thành 1 lệnh `bootstrap.sh`, kèm bảng chẩn đoán sự cố.
 
 | | |
 |---|---|
@@ -25,7 +27,8 @@ git clone <url-repo> ~/arch-config && cd ~/arch-config && ./install.sh
 
 ```
 arch-config/
-├── install.sh              # 1 lệnh cài tất cả
+├── bootstrap.sh              # ⭐ cài MÁY MỚI từ USB: 1 lệnh
+├── install.sh                # cài dotfiles lên hệ thống đã có
 ├── packages/
 │   ├── official.txt        # gói pacman, không AUR
 │   └── AUR.md              # gói đã cân nhắc + lý do bỏ
@@ -98,7 +101,12 @@ sudo dd if=archlinux-x86_64.iso of=/dev/sdX bs=4M status=progress conv=fsync
 
 ### Bước 1 · Phân vùng (không tạo swap)
 
+⚠️ Phần này **không** tự động hoá — xoá nhầm phân vùng là mất sạch ổ
+cứng. Làm tay, nhìn thấy rõ.
+
 ```bash
+# ⛔ KHÔNG tạo swap. Máy có 7.4 GiB RAM, deep sleep đủ dùng, zram
+#    lo phần RAM còn dư. Swap 8 GiB chỉ phục vụ hibernate.
 cfdisk /dev/nvme0n1
 #   1 GiB   EFI System        → /dev/nvme0n1p1
 #   còn lại Linux filesystem → /dev/nvme0n1p2
@@ -109,115 +117,121 @@ mount      /dev/nvme0n1p2 /mnt
 mount --mkdir /dev/nvme0n1p1 /mnt/boot
 ```
 
-### Bước 2 · Cài hệ thống tối thiểu
+Xong phần này mới sang Bước 2.
+
+### Bước 2 · Cài hệ thống + dotfiles — 1 lệnh
+
+Sau khi vào live shell và có mạng:
 
 ```bash
-# ⛔ sudo và git KHÔNG nằm trong nhóm `base`. Thiếu sudo thì không làm
-#    được gì cả; thiếu git thì Bước 3 không clone được dotfiles.
-pacstrap -K /mnt base linux linux-firmware systemd mkinitcpio \
-    sudo git efibootmgr intel-ucode
+iwctl                                        # nếu là Wi-Fi
+device list
+station wlan0 connect <TÊN-WIFI>
+exit
 
-arch-chroot /mnt
+ping -c3 archlinux.org                       # phải được 3 replies
+timedatectl set-ntp true
+
+git clone https://github.com/dxtuyen/arch-config.git
+sudo arch-config/bootstrap.sh
 ```
 
-**Trong chroot:**
+`bootstrap.sh` làm hết: `pacstrap` (kèm `sudo git efibootmgr intel-ucode`) ·
+múi giờ · locale · fstab bằng UUID · user + sudo · NetworkManager + iwd ·
+clone dotfiles và chạy `install.sh` · `mkinitcpio -P` · `bootctl install`.
+
+Hai lý do nó phải là script chứ không phải `archinstall` của Arch:
+
+1. **Đọc `schema.json` của `archinstall` (18 trường):** không có
+   `kernel_params`, không có `hibernate`/`swap`. Nó cũng không cài
+   `intel-ucode` (thiếu thì **kernel có thể không khởi động** trên CPU
+   Intel), không `git`, và mặc định cài **LightDM** chứ không greetd.
+2. **Thứ tự deep sleep** — phần này không thể sai:
+   ```
+   install.sh stow etc/kernel/cmdline → mkinitcpio -P → bootctl install
+   ```
+   `archinstall` không cho kiểm soát thứ tự. Gộp 2 bước sau ra trước
+   thì initramfs không có `deep`; làm `bootctl` sớm thì không có entry.
+
+> **Phân vùng (Bước 1) là phần duy nhất script không tự làm.** Xoá nhầm
+> thì mất sạch ổ cứng. Script chỉ kiểm tra `/mnt` đã mount đúng rồi mới
+> chạy tiếp — chưa có thì nó dừng và in lại hướng dẫn `cfdisk`.
+
+<details>
+<summary>Cài tay từng bước (để học trên máy ảo)</summary>
+
+Không dùng `bootstrap.sh`, làm tay theo thứ tự này. Thứ tự **bắt buộc** —
+đặc biệt bootloader phải cài **trước khi reboot**, không thì máy không
+khởi động được.
+
+**Trong chroot sau `pacstrap`:**
 
 ```bash
-# Khoá pacman (sau pacstrap phải làm, nếu không `pacman -S` sẽ lỗi)
-pacman-key --init
-pacman-key --populate archlinux
+pacman-key --init && pacman-key --populate archlinux
 pacman -Syu
 
-# Mirror
-echo 'Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch' > /etc/pacman.d/mirrorlist
-pacman -Sy
-
-# ⚠️ Dùng NetworkManager NGAY TỪ ĐẦU — dotfiles chạy trên nó (nm-applet,
-#    nmcli trong quick-net-reload, networkmanagerapplet). Cài thêm
-#    systemd-networkd/resolved ở bước này sẽ đụng đội: hai trình cùng
-#    quản lý interface, rất khó chẩn đoán khi có sự cố.
+# ⚠️ NetworkManager, KHÔNG systemd-networkd — dotfiles chạy trên nó
+#    (nm-applet trong sway/config, nmcli trong quick-net-reload).
+#    Hai trình cùng quản lý interface thì rất khó chẩn đoán.
 pacman -S --needed networkmanager iwd
 systemctl enable NetworkManager.service
-cat > /etc/NetworkManager/NetworkManager.conf <<'EOF'
+cat > /etc/NetworkManager/NetworkManager.conf <<'EOF2'
 [main]
 dns=systemd-resolved
 wifi.backend=iwd
 [connection]
 wifi.cloned-mac-address=stable
-EOF
+EOF2
 systemctl enable systemd-resolved.service
 ln -sf /run/systemd/resolve/stub-resolv.conf /etc/resolv.conf
 
 # ⛔ THIẾU FILE NÀY THÌ MÁY KHÔNG CÓ WIFI
-#    (iwd + NetworkManager không tự sinh file này)
-cat > /etc/systemd/network/20-wifi.network <<'EOF'
+mkdir -p /etc/systemd/network
+cat > /etc/systemd/network/20-wifi.network <<'EOF3'
 [Match]
 Name=wlan0 wlp*
 [Network]
 DHCP=yes
 IPv6AcceptRA=yes
-EOF
+EOF3
 
-# User + sudo
 useradd -m -G wheel -s /bin/bash <TÊN>
 passwd <TÊN>
 echo '%wheel ALL=(ALL:ALL) ALL' > /etc/sudoers.d/wheel
 chmod 440 /etc/sudoers.d/wheel
 visudo -c -f /etc/sudoers.d/wheel      # phải báo "parsed OK"
 
-# Locale (install.sh cũng làm, nhưng làm sớm ở đây cho chắc)
 sed -i 's/^#\(en_US.UTF-8\)/\1/' /etc/locale.gen
-locale-gen
-echo 'LANG=en_US.UTF-8' > /etc/locale.conf
+locale-gen && echo 'LANG=en_US.UTF-8' > /etc/locale.conf
+ln -sf /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime && hwclock --systohc
 
-# Múi giờ
-ln -sf /usr/share/zoneinfo/Asia/Ho_Chi_Minh /etc/localtime
-hwclock --systohc
-
-# fstab — BẮT BUỘC dùng UUID.
-# ⚠️ Tên /dev/sdX KHÔNG ổn định giữa các lần boot (thứ tự nhận thiết bị
-#    đổi theo lần khởi động), dùng nó thì có lần máy không mount được root.
+# fstab BẮT BUỘC dùng UUID — tên /dev/sdX không ổn định giữa các lần boot
 ROOT_UUID=$(blkid -s UUID -o value /dev/nvme0n1p2)
 ESP_UUID=$(blkid -s UUID -o value /dev/nvme0n1p1)
 printf 'UUID=%s / ext4 defaults,noatime 0 1\n'  "$ROOT_UUID" >> /etc/fstab
 printf 'UUID=%s /boot vfat defaults,fmask=0077,dmask=0077 0 2\n' "$ESP_UUID" >> /etc/fstab
-cat /etc/fstab                         # kiểm tra lại trước khi đi tiếp
-```
 
-### Bước 3 · Cài dotfiles
-
-```bash
-su - <TÊN>
-git clone <REPO> ~/arch-config
-cd ~/arch-config && ./install.sh
-
-# ⚠️ Stow tạo symlink nhưng KHÔNG giữ quyền của file trong repo, nên
-#    /etc/sudoers.d/wheel ra 644 và sudo SẼ IM LẶNG BỎ QUA — mất quyền
-#    admin mà không có dòng cảnh báo nào. install.sh đã tự sửa, làm tay
-#    thêm một lần cho chắc trước khi rời chroot:
-sudo chmod 440 /etc/sudoers.d/wheel
-sudo visudo -c -f /etc/sudoers.d/wheel
-
+# Dotfiles
+su - <TÊN> && git clone <REPO> ~/arch-config && cd ~/arch-config && ./install.sh
+sudo chmod 440 /etc/sudoers.d/wheel && sudo visudo -c -f /etc/sudoers.d/wheel
 exit
 ```
 
-### Bước 4 · Cài bootloader **trước khi reboot**
+**Bootloader — sau khi `install.sh` đã stow `etc/kernel/cmdline`:**
 
 ```bash
-arch-chroot /mnt
-
-# mkinitcpio.conf đã có hook `microcode` (do install.sh stow từ repo)
-# và intel-ucode đã cài → initramfs có microcode. Thiếu cái này thì
-# kernel có thể không khởi động trên một số CPU Intel.
+cat /etc/kernel/cmdline               # phải thấy mem_sleep_default=deep
+grep microcode /etc/mkinitcpio.conf   # phải có hook này
 mkinitcpio -P
-
-bootctl install                 # ⚠️ cần ESP đang mount ở /mnt/boot
+bootctl install                      # ⚠️ cần ESP đang mount ở /mnt/boot
 kernel-install add-all "$(ls /usr/lib/modules | sort -V | tail -1)"
-bootctl list                    # phải thấy entry + "Default EFI"
+bootctl list                         # phải thấy entry + "Default EFI"
 exit
 ```
 
-### Bước 5 · Reboot
+</details>
+
+### Bước 3 · Reboot
 
 ```bash
 umount -R /mnt
@@ -227,7 +241,7 @@ reboot
 Đăng nhập bằng user đã tạo. greetd/tuigreet hiện ra → nhập tên →
 mật khẩu → Sway tự lên.
 
-### Bước 6 · Kiểm tra sau lần boot đầu
+### Bước 4 · Kiểm tra sau lần boot đầu
 
 ```bash
 systemctl --user --failed            # phải TRỐNG
@@ -244,7 +258,7 @@ systemctl --user status wallpaper-init
 | **Đăng nhập xong rơi vào `/bin/sh`, không có Sway** | greetd không đọc `~/.config/greetd/config.toml`. Kiểm: `sudo cat /etc/greetd/config.toml` phải thấy `tuigreet` |
 | Không lên màn hình đăng nhập | `bootctl list` rỗng → `bootctl install` chạy lúc ESP chưa mount |
 | Vào Sway nhưng không gõ được tiếng Việt | `systemctl --user status fcitx5` → đọc log |
-| `sudo: command not found` | quên `pacman -S sudo` ở Bước 2 |
+| `sudo: command not found` | `bootstrap.sh` cài sẵn `sudo` — lỗi này chỉ xảy ra khi cài tay, quên thêm `sudo` ở `pacstrap` |
 | Không có mạng | thiếu `/etc/systemd/network/20-wifi.network` |
 | Máy không boot | `/etc/fstab` sai UUID → đọc log trên màn hình initramfs |
 | `sudo` báo "not in the sudoers file" | `/etc/sudoers.d/wheel` quyền ≠ 440 → `sudo chmod 440` |
@@ -252,9 +266,6 @@ systemctl --user status wallpaper-init
 Mất màn hình đăng nhập thì sửa được từ TTY khác: `Ctrl+Alt+F2`, đăng
 nhập, rồi thêm `systemd.mask=greetd.service` vào `/etc/kernel/cmdline`
 để tạm lấy lại `agetty` mà sửa cấu hình.
-
----
-
 ## Vận hành hằng ngày
 
 ```bash
