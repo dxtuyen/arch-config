@@ -55,11 +55,13 @@ arch-config/
 └── lockscreen/lockscreen.png
 ```
 
-> **Ảnh khoá màn hình:** `lockscreen/lockscreen.png` (3840×2160) lấy từ
-> [f4dzN/archlinux-wallpapers](https://github.com/f4dzN/archlinux-wallpapers)
-> — MIT, © 2025 f4dzn. Bản gốc kèm license ở
-> `lockscreen/LICENSE-wallpaper.txt`. Muốn đổi thì thay file, không
-> cần sửa gì thêm.
+> **Ảnh khoá màn hình:** `lockscreen/lockscreen.png` lấy từ
+> [LagrangianLad/arch-minimal-wallpapers](https://github.com/LagrangianLad/arch-minimal-wallpapers)
+> (bản `material-darker`) — MIT, © 2021 Pablo Corbalán. Bản gốc kèm
+> license ở `lockscreen/LICENSE-wallpaper.txt`. Muốn đổi thì thay file
+> trong `lockscreen/`, không cần sửa gì thêm. Repo đó có 33 bản màu
+> theo palette của các theme nổi tiếng (`rosepine`, `nord`, `onedark`,
+> `tokyonight`…).
 
 **Cơ chế:** file trong repo được `stow` thành symlink ở đích. Sửa ở đâu
 cũng được — sửa trong repo thì có version control, sửa ở `~` cũng được
@@ -299,8 +301,45 @@ rồi xoá: `awww` khỏi `packages/official.txt` · `wallpaper-set` ·
 không còn gì chạy nền.
 
 Ảnh nằm ở `~/Pictures/wallpapers` — **ngoài repo**, cp/rm tự do, không
-cần cài lại dotfiles. Máy mới không có ảnh thì tự dùng màu nền theme
-Tokyo Night, không cần làm gì.
+cần cài lại dotfiles. Giống `~/Books` hay `~/.config/quick-lang`, thư mục
+này **không có trong git** (ảnh nặng, và mỗi máy một bộ).
+
+#### Máy mới: đưa ảnh vào thế nào
+
+Ảnh cũ nằm ở ổ cứng hoặc máy cũ, copy sang thẳng:
+
+```bash
+mkdir -p ~/Pictures/wallpapers
+cp -v /đường/dẫn/ảnh/*.{png,jpg,jpeg} ~/Pictures/wallpapers/ 2>/dev/null
+# hoặc dùng đĩa USB:
+cp -v /run/media/$USER/USB/wallpapers/* ~/Pictures/wallpapers/
+```
+
+Xong là xong, **không cần chạy `install.sh` lại**. `wallpaper-init.service`
+tự động chạy mỗi lần đăng nhập: nếu `awww` đã giữ được ảnh phiên trước
+thì giữ nguyên, chưa có thì random một ảnh.
+
+**Chưa có ảnh nào cũng không sao** — nền là màu trơn `0x1a1b26` (Tokyo
+Night), không lỗi gì. Thả ảnh vào sau, lần đăng nhập kế tiếp sẽ thấy.
+
+Đổi ảnh ngẫu nhiên: `Alt+Shift+w` (rofi lưới 3×3 có thumbnail) · đặt
+đúng một ảnh: `wallpaper-set <đường/dẫn/ảnh>`.
+
+#### Muốn ảnh nền nằm trong git
+
+Không khuyên — ảnh 2-4K mỗi tấm vài MB, và bộ ảnh là thứ cá nhân của
+bạn. Nếu vẫn muốn (ví dụ chỉ 1 ảnh, ~200 KB):
+
+```bash
+# 1. Tạo symlink trong repo trỏ sang ảnh, thay vì copy nhị phân
+ln -s ~/Pictures/wallpapers/<tên>.jpg lockscreen/
+# 2. Bỏ dòng này khỏi .gitignore
+#    Pictures/
+git add lockscreen/ && git commit -m 'thêm ảnh nền'
+```
+
+Nên nhớ `awww` cache ảnh ở `~/.cache/awww` — máy mới clone repo vẫn
+phải có ảnh thật ở `~/Pictures/wallpapers` mới hiện được.
 
 ---
 
