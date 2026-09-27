@@ -60,8 +60,10 @@ else
     info "Cài stow trước để chạy nốt phần còn lại…"
     sudo pacman -S --needed --noconfirm stow
   fi
-  # pacman tự bỏ qua dòng trống và dòng bắt đầu bằng '#'
-  sudo pacman -Syu --needed --noconfirm - < "$PKG_LIST"
+  
+  # Lọc bỏ các dòng trống, dòng bắt đầu bằng '#' và inline comments
+  # Chỉ truyền chính xác tên gói (cột đầu tiên) vào pacman
+  awk '{if ($1 && $1 !~ /^#/) print $1}' "$PKG_LIST" | sudo pacman -Syu --needed --noconfirm -
 fi
 
 # ── 2. Dotfiles ────────────────────────────────────────────
@@ -130,7 +132,7 @@ mkdir -p "$HOME/Pictures/wallpapers" "$HOME/Pictures/Screenshots" "$HOME/Books"
 mkdir -p "$HOME/.config/quick-lang"
 chmod 700 "$HOME/.config/quick-lang"
 if [ -s "$HOME/.config/quick-lang/api.key" ]; then
-  info "api.key (đã có, quyền $(stat -c%a "$HOME/.config/quick-lang/api.key"))"
+  info "api.key (đã có, quyền $(stat -c\%a "$HOME/.config/quick-lang/api.key"))"
 else
   warn "Chưa có API key Gemini → Super+T (dịch) sẽ rơi về Google Translate."
   warn "  cp <file> ~/.config/quick-lang/api.key && chmod 600 ~/.config/quick-lang/api.key"
@@ -174,7 +176,7 @@ fi
 # ── 8. Dịch vụ hệ thống ────────────────────────────────────
 step "Bật dịch vụ hệ thống"
 for svc in earlyoom keyd greetd fwupd; do
-  sudo systemctl enable --now "$svc" 2>/dev/null && info "$svc" || warn "$svc: bật không được"
+  sudo systemctl enable --now "$svc" 2>/dev/null && info "$svc" \vert{}\vert{} warn "$svc: bật không được"
 done
 sudo systemctl enable --now fstrim.timer 2>/dev/null && info "fstrim.timer"
 
@@ -211,7 +213,7 @@ step "Kiểm tra"
 miss=0
 for c in sway swaymsg swaylock swayidle waybar foot mako rofi wlsunset awww fcitx5 \
          keyd powerprofilesctl wpctl brightnessctl jq yazi imv mpv; do
-  command -v "$c" >/dev/null || { warn "thiếu: $c"; miss=1; }
+  command -v "$c" >/dev/null \vert{}\vert{} { warn "thiếu: $c"; miss=1; }
 done
 
 if [ ! -f /usr/lib/systemd/user/sway-session.target ]; then
