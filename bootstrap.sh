@@ -115,7 +115,6 @@ printf '%s\n' '$HOSTNAME' > /etc/hostname
   printf 'UUID=%s / ext4 defaults,noatime 0 1\n' '$root_uuid'
   printf 'UUID=%s /boot vfat defaults,fmask=0077,dmask=0077 0 2\n' '$esp_uuid'
 } > /etc/fstab
-cat /etc/fstab
 
 id '$USER_NAME' &>/dev/null || useradd -m -G wheel -s /bin/bash '$USER_NAME'
 printf '%s:%s\n' '$USER_NAME' '$USER_PASS' | chpasswd
@@ -155,32 +154,40 @@ warn "Nhớ copy API key Gemini sang máy mới:"
 warn "  cp <file> ~/.config/quick-lang/ && chmod 600 ~/.config/quick-lang/api.key"
 
 # ══ 6. initramfs rồi mới bootloader ════════════════════════════
-step "Tạo initramfs rồi cài bootloader"
+step "Tạo initramfs và cấu hình bootloader"
 
-arch-chroot "$TARGET" /bin/bash -euo pipefail <<'BOOT'
-if [ -f /etc/kernel/cmdline ]; then
-  echo "--- /etc/kernel/cmdline ---"
-  cat /etc/kernel/cmdline
-fi
-
+arch-chroot "$TARGET" /bin/bash -euo pipefail <<BOOT
 mkinitcpio -P
 bootctl install
-kver="$(ls /usr/lib/modules | sort -V | tail -1)"
-kernel-install add-all "$kver" 2>/dev/null || true
+
+# Tự tạo cấu hình loader chung
+cat > /boot/loader/loader.conf << 'LOADER'
+default arch.conf
+timeout 3
+console-mode max
+editor no
+LOADER
+
+# Tự tạo file entry boot cho Arch Linux bằng UUID chuẩn
+mkdir -p /boot/loader/entries
+cat > /boot/loader/entries/arch.conf << ENTRY
+title   Arch Linux
+linux   /vmlinuz-linux
+initrd  /intel-ucode.img
+initrd  /initramfs-linux.img
+options root=UUID=$root_uuid rw quiet mem_sleep_default=deep
+ENTRY
+
 echo "--- bootctl list ---"
 bootctl list
 BOOT
 
 # ══ 7. Xác nhận bootloader có thật ═════════════════════════════
 step "Kiểm tra bootloader"
-if arch-chroot "$TARGET" bootctl list 2>/dev/null | grep -qE 'Product:|/EFI/|title:'; then
-  ok "bootctl có entry — máy sẽ boot được"
+if arch-chroot "$TARGET" bootctl list 2>/dev/null | grep -qE 'title:.*Arch Linux'; then
+  ok "bootctl đã nhận cấu hình Arch Linux — máy chắc chắn boot được"
 else
-  die "bootctl list không có entry — MÁY SẼ KHÔNG BOOT ĐƯỢC.
-  Kiểm tra:
-    arch-chroot $TARGET
-    ls -l /boot/EFI/systemd/
-    bootctl status"
+  die "bootctl list vẫn không nhận entry. Kiểm tra lại /boot/loader/entries/"
 fi
 
 # ══ 8. Bàn giao ═══════════════════════════════════════════════
